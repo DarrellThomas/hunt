@@ -1,5 +1,45 @@
 # Changelog
 
+## 2026-01-17 - Architecture Refactoring Phase 1 (Foundation)
+
+### Added - Phase 1.2: Dataclass Configuration System
+- **config_new.py**: Complete dataclass-based configuration system
+  - `BoundaryMode` enum: Toroidal (wrap-around) vs Bounded (walled) worlds
+  - `PhysicsConfig`, `LifecycleConfig`, `EnergyConfig`: Species parameters
+  - `ObservationConfig`: Dynamic sensor configuration
+  - `SpeciesConfig`: Complete species definition
+  - `RiverConfig`: River and island parameters
+  - `ExtinctionPreventionConfig`: Population management
+  - `WorldConfig`: World-level parameters with boundary mode support
+  - `InteractionConfig`: Species interaction definitions
+  - `SimulationConfig`: Top-level configuration with validation
+  - JSON serialization/deserialization support
+  - Factory methods: `default_two_species()`, `default_bounded()`
+- **tests/test_config_new.py**: 10 comprehensive unit tests (all passing)
+
+### Added - Phase 1.1: Shared Utilities
+- **utils.py**: Unified distance and position utilities
+  - `toroidal_distance_numpy/torch`: Wrap-around distance calculations
+  - `bounded_distance_numpy/torch`: Walled world distance calculations
+  - `spawn_offset`: Random offspring placement
+  - `wrap_position_numpy/torch`: Position wrapping for toroidal worlds
+  - `clamp_position_numpy/torch`: Position clamping for bounded worlds
+- **tests/test_utils.py**: 7 unit tests verifying NumPy/PyTorch consistency
+
+### Changed
+- **agent.py**: Now uses `toroidal_distance_numpy` from utils.py
+- **simulation_gpu.py**: Now uses `toroidal_distance_torch` from utils.py
+
+### Impact
+This foundation enables:
+- **Boundary mode selection**: Users can choose toroidal vs bounded worlds
+- **N-species support**: Configuration system ready for arbitrary species count
+- **Experiment saving**: JSON serialization for reproducible experiments
+- **Validation**: Automatic checking of configuration validity
+- **Code reuse**: Shared utilities reduce duplication
+
+---
+
 ## 2026-01-17 - CRITICAL FIX: GPU Neuroevolution
 
 ### Fixed
