@@ -1,5 +1,62 @@
 # Changelog
 
+## 2026-01-17 - Architecture Refactoring Phase 2 (N-Species) ✅ COMPLETE
+
+### Added - Phase 2.2: Dynamic Sensor System
+- **sensors.py**: Flexible sensor system for agent observations (270 lines)
+  - `Sensor` abstract base class
+  - `NearestAgentsSensor`: Observe nearest N agents of any species
+  - `HungerSensor`: Sense own energy/hunger level
+  - `IslandProximitySensor`: Detect if on island
+  - `WallProximitySensor`: Sense distance to walls (for bounded mode)
+  - `SensorSuite`: Combine multiple sensors into observation vector
+  - `SensorSuite.from_config()`: Create sensors from ObservationConfig
+- Sensors automatically calculate correct observation dimensions
+- Supports observing any combination of species
+
+### Added - Phase 2.1: N-Species Architecture
+- **species.py**: Multi-species management system (180 lines)
+  - `AgentRole` enum: PREY, PREDATOR, SCAVENGER, PRODUCER
+  - `InteractionResult`: Track predator-prey interaction outcomes
+  - `SpeciesManager`: Manage arbitrary numbers of species
+    - Replaces hardcoded prey/predator lists with flexible dictionary
+    - `initialize_populations()`: Create species from config
+    - `get_all_positions/velocities()`: Extract data for observations
+    - `get_species()`, `get_config()`: Access species data
+    - `remove_dead()`, `add_agent()`: Population management
+    - `stats_summary()`: Get population counts per species
+- Fully dynamic - no hardcoded species names
+
+### Changed - Phase 2: Agent System Updates
+- **agent.py**: Updated for config-based creation
+  - Added `sensor_suite` parameter to Prey and Predator `__init__`
+  - Added `Prey.from_config()` class method
+  - Added `Predator.from_config()` class method
+  - Agents now support dynamic observation dimensions
+  - Backward compatible with existing code
+
+### Added - Phase 2: Tests
+- **tests/test_n_species.py**: 5 comprehensive tests (all passing)
+  - Tests SpeciesManager initialization
+  - Tests SensorSuite creation from config
+  - Tests agent creation from SpeciesConfig
+  - Tests position/velocity extraction
+  - Tests stats summary generation
+
+### Impact - Phase 2
+This enables true N-species simulations:
+- **Add new species** without modifying code (just update config)
+- **Custom observations** per species (each sees different things)
+- **Flexible interactions** (any species can interact with any other)
+- **Extensible sensors** (add new sensor types easily)
+- **No hardcoded limits** on species count
+
+Example: Can now create 3+ species ecosystems:
+- Herbivores (eat plants), Predators (eat herbivores), Apex predators (eat predators)
+- All configured via SimulationConfig JSON
+
+---
+
 ## 2026-01-17 - Architecture Refactoring Phase 1 (Foundation) ✅ COMPLETE
 
 ### Added - Phase 1.3: Unified Extinction Prevention

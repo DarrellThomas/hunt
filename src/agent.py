@@ -140,9 +140,12 @@ def vectorized_distances(pos, other_positions, world_width, world_height):
 class Prey(Agent):
     """Prey agents that try to survive."""
 
-    def __init__(self, x, y, world_width, world_height, brain=None, swim_speed=None):
+    def __init__(self, x, y, world_width, world_height, brain=None, swim_speed=None, sensor_suite=None):
         # Prey observes: 5 nearest predators (x, y, vx, vy each) + 3 nearest prey = 5*4 + 3*4 = 32 inputs
-        super().__init__(x, y, world_width, world_height, brain, input_size=32)
+        input_size = sensor_suite.total_dimension if sensor_suite else 32
+        super().__init__(x, y, world_width, world_height, brain, input_size=input_size)
+
+        self.sensor_suite = sensor_suite  # Optional: for N-species support
 
         self.max_speed = PREY_MAX_SPEED
         self.max_acceleration = PREY_MAX_ACCELERATION
@@ -231,13 +234,51 @@ class Prey(Agent):
         """Update fitness based on survival."""
         self.fitness = self.age  # Fitness = survival time
 
+    @classmethod
+    def from_config(cls, x, y, sp_config: 'SpeciesConfig', world_width, world_height):
+        """Create prey from SpeciesConfig.
+
+        Args:
+            x, y: Initial position
+            sp_config: SpeciesConfig with parameters
+            world_width, world_height: World boundaries
+
+        Returns:
+            Prey instance configured from sp_config
+        """
+        from sensors import SensorSuite
+
+        # Create sensor suite from observation config
+        sensor_suite = SensorSuite.from_config(sp_config.observation)
+
+        prey = cls(x, y, world_width, world_height, sensor_suite=sensor_suite)
+
+        # Override parameters from config
+        prey.max_speed = sp_config.physics.max_speed
+        prey.max_acceleration = sp_config.physics.max_acceleration
+        prey.swim_speed = max(0.1, sp_config.physics.swim_speed + np.random.randn() * 0.2)
+
+        prey.max_lifespan = max(100, int(np.random.normal(
+            sp_config.lifecycle.max_lifespan,
+            sp_config.lifecycle.lifespan_variance
+        )))
+        prey.reproduction_age = max(50, int(np.random.normal(
+            sp_config.lifecycle.reproduction_age,
+            sp_config.lifecycle.reproduction_variance
+        )))
+
+        return prey
+
 
 class Predator(Agent):
     """Predator agents that must hunt to survive."""
 
-    def __init__(self, x, y, world_width, world_height, brain=None, swim_speed=None):
+    def __init__(self, x, y, world_width, world_height, brain=None, swim_speed=None, sensor_suite=None):
         # Predator observes: 5 nearest prey (x, y, vx, vy each) + own hunger = 5*4 + 1 = 21 inputs
-        super().__init__(x, y, world_width, world_height, brain, input_size=21)
+        input_size = sensor_suite.total_dimension if sensor_suite else 21
+        super().__init__(x, y, world_width, world_height, brain, input_size=input_size)
+
+        self.sensor_suite = sensor_suite  # Optional: for N-species support
 
         self.max_speed = PRED_MAX_SPEED
         self.max_acceleration = PRED_MAX_ACCELERATION
@@ -324,3 +365,47 @@ class Predator(Agent):
         """Update fitness based on survival and hunting success."""
         # Fitness = age (survival) + energy (hunting success)
         self.fitness = self.age + self.energy
+
+    @classmethod
+    def from_config(cls, x, y, sp_config: 'SpeciesConfig', world_width, world_height):
+        """Create predator from SpeciesConfig.
+
+        Args:
+            x, y: Initial position
+            sp_config: SpeciesConfig with parameters
+            world_width, world_height: World boundaries
+
+        Returns:
+            Predator instance configured from sp_config
+        """
+        from sensors import SensorSuite
+
+        # Create sensor suite from observation config
+        sensor_suite = SensorSuite.from_config(sp_config.observation)
+
+        predator = cls(x, y, world_width, world_height, sensor_suite=sensor_suite)
+
+        # Override parameters from config
+        predator.max_speed = sp_config.physics.max_speed
+        predator.max_acceleration = sp_config.physics.max_acceleration
+        predator.swim_speed = max(0.1, sp_config.physics.swim_speed + np.random.randn() * 0.2)
+
+        predator.max_lifespan = max(200, int(np.random.normal(
+            sp_config.lifecycle.max_lifespan,
+            sp_config.lifecycle.lifespan_variance
+        )))
+        predator.reproduction_cooldown = max(50, int(np.random.normal(
+            sp_config.lifecycle.reproduction_variance,  # This acts as cooldown variance
+            sp_config.lifecycle.reproduction_variance
+        )))
+
+        # Energy system parameters (if has_energy_system)
+        if sp_config.has_energy_system:
+            predator.max_energy = sp_config.energy.max_energy
+            predator.energy = sp_config.energy.initial_energy
+            predator.energy_cost_per_step = sp_config.energy.energy_cost_per_step
+            predator.energy_gain_per_kill = sp_config.energy.energy_gain_per_kill
+            predator.reproduction_threshold = sp_config.energy.reproduction_threshold
+            predator.reproduction_cost = sp_config.energy.reproduction_cost
+
+        return predator
