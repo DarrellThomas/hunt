@@ -73,6 +73,7 @@ class World:
         for predator in self.predators:
             predator.update_physics()
             predator.update_energy()
+            predator.time_since_reproduction += 1
 
         # 3. Check collisions (predators catching prey)
         prey_to_remove = set()
@@ -113,6 +114,7 @@ class World:
                 child = predator.reproduce(mutation_rate)
                 new_predators.append(child)
                 predator.pay_reproduction_cost()
+                predator.time_since_reproduction = 0  # Reset reproduction timer
 
         self.prey.extend(new_prey)
         self.predators.extend(new_predators)

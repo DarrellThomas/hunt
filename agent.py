@@ -220,13 +220,15 @@ class Predator(Agent):
         self.max_speed = 2.5  # Slightly slower than prey
         self.max_acceleration = 0.4
         self.max_lifespan = 800
-        self.energy = 100
-        self.max_energy = 100
-        self.energy_cost_per_step = 0.5
-        self.energy_gain_per_kill = 50
-        self.reproduction_threshold = 80
-        self.reproduction_cost = 30
-        self.catch_radius = 5.0
+        self.energy = 150
+        self.max_energy = 150
+        self.energy_cost_per_step = 0.3
+        self.energy_gain_per_kill = 60
+        self.reproduction_threshold = 120
+        self.reproduction_cost = 40
+        self.reproduction_cooldown = 150  # Minimum time between reproductions
+        self.time_since_reproduction = 0
+        self.catch_radius = 8.0  # Larger radius to help random movement succeed occasionally
 
     def observe(self, world):
         """
@@ -276,7 +278,7 @@ class Predator(Agent):
 
     def can_reproduce(self):
         """Check if predator can reproduce."""
-        return self.energy >= self.reproduction_threshold
+        return self.energy >= self.reproduction_threshold and self.time_since_reproduction >= self.reproduction_cooldown
 
     def pay_reproduction_cost(self):
         """Pay energy cost for reproduction."""
