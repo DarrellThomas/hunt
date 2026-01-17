@@ -208,11 +208,11 @@ class Visualizer:
 
 def main():
     """Main entry point."""
-    # Create world
-    world = World(width=800, height=600, initial_prey=50, initial_predators=10)
+    # Create world - 4x larger (2x width, 2x height)
+    world = World(width=1600, height=1200, initial_prey=200, initial_predators=40)
 
     # Create visualizer
-    viz = Visualizer(world, screen_width=800, screen_height=600, fps=30)
+    viz = Visualizer(world, screen_width=1600, screen_height=1200, fps=30)
 
     # Run simulation
     # mutation_rate: How much offspring differ from parents

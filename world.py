@@ -120,14 +120,18 @@ class World:
         self.predators.extend(new_predators)
 
         # 7. Prevent extinction - spawn random agents if population too low
-        if len(self.prey) < 10:
-            for _ in range(10 - len(self.prey)):
+        # Minimum thresholds scale with world size
+        min_prey = max(10, int(self.width * self.height / 24000))  # ~40 for 1600x1200
+        min_predators = max(3, int(self.width * self.height / 160000))  # ~12 for 1600x1200
+
+        if len(self.prey) < min_prey:
+            for _ in range(min_prey - len(self.prey)):
                 x = np.random.uniform(0, self.width)
                 y = np.random.uniform(0, self.height)
                 self.prey.append(Prey(x, y, self.width, self.height))
 
-        if len(self.predators) < 3:
-            for _ in range(3 - len(self.predators)):
+        if len(self.predators) < min_predators:
+            for _ in range(min_predators - len(self.predators)):
                 x = np.random.uniform(0, self.width)
                 y = np.random.uniform(0, self.height)
                 self.predators.append(Predator(x, y, self.width, self.height))
