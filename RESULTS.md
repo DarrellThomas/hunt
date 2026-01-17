@@ -24,12 +24,20 @@ Successfully implemented a predator-prey ecosystem where both species learn to s
 - **Predator max age:** 429 timesteps
 - **Key finding:** Successful 4x scale-up with optimized vectorization
 
-### Run 4: MAXIMUM SCALE (3200x2400, 8000 prey + 2000 predators)
+### Run 4: GPU SCALE (3200x2400, 8000 prey + 2000 predators)
 - **Timesteps:** 938
 - **Hardware:** RTX 5090 GPU
 - **Performance:** 14.5 FPS with 10,000 agents
 - **Result:** Prey dropped to 2,993 then recovered to 4,704
 - **Key finding:** GPU-accelerated co-evolution at massive scale
+
+### Run 5: FULL 4K (3840x2160, 9600 prey + 2400 predators)
+- **Timesteps:** 100
+- **Resolution:** 3840x2160 (True 4K - fills entire monitor)
+- **Hardware:** RTX 5090 GPU
+- **Performance:** 13.8 FPS with 12,000 agents
+- **Result:** Extreme predation - prey crashed 74% (9,600 → 2,479)
+- **Key finding:** 12,000 agents running smoothly at full 4K resolution
 
 ## Technical Achievements
 
@@ -104,6 +112,7 @@ Successfully implemented a predator-prey ecosystem where both species learn to s
 | Original | 60 | 800x600 | CPU | 24 | 41.8ms |
 | Optimized | 240 | 1600x1200 | CPU | 91 | 10.9ms |
 | GPU | 10,000 | 3200x2400 | RTX 5090 | 17 | 58.2ms |
+| **4K** | **12,000** | **3840x2160** | **RTX 5090** | **14** | **72.5ms** |
 
 ## Conclusion
 
@@ -114,7 +123,7 @@ This project demonstrates that complex predator-prey dynamics and co-evolution c
 
 No reward engineering, no curriculum learning, no human guidance. Just survival of the fittest. The result: **intelligence emerges from necessity.**
 
-The ecosystem scales from 60 to 10,000 agents, maintains stability over thousands of timesteps, and shows genuine learning through evolution. The hunt is real.
+The ecosystem scales from 60 to 12,000 agents, fills an entire 4K monitor, maintains stability over thousands of timesteps, and shows genuine learning through evolution. The hunt is real.
 
 ---
 
