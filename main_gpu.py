@@ -163,16 +163,16 @@ class GPUVisualizer:
 
 def main():
     """Entry point."""
-    # 3200x2400 world, 10,000 agents
+    # FULL 4K: 3840x2160 world, 12,000 agents
     ecosystem = GPUEcosystem(
-        width=3200,
-        height=2400,
-        num_prey=8000,
-        num_predators=2000,
+        width=3840,
+        height=2160,
+        num_prey=9600,  # Scale up proportionally
+        num_predators=2400,
         device='cuda'
     )
 
-    viz = GPUVisualizer(ecosystem, screen_width=3200, screen_height=2400, fps=60)
+    viz = GPUVisualizer(ecosystem, screen_width=3840, screen_height=2160, fps=60)
     viz.run(steps_per_frame=1, print_interval=500)
 
 
