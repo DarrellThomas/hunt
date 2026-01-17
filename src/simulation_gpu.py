@@ -8,7 +8,7 @@ import torch
 import torch.nn as nn
 import numpy as np
 from config import *  # Import all configuration parameters
-from river import River
+from river_gpu import RiverGPU
 from utils import toroidal_distance_torch
 
 
@@ -77,8 +77,8 @@ class GPUEcosystem:
         self.pred_repro_cooldown = PRED_REPRODUCTION_COOLDOWN
         self.catch_radius = CATCH_RADIUS
 
-        # Create river
-        self.river = River(width, height)
+        # Create GPU-resident river
+        self.river = RiverGPU(width, height, device=device)
 
         # Initialize prey on GPU
         self.prey_pos = torch.rand(num_prey, 2, device=device) * torch.tensor([width, height], device=device)
@@ -322,16 +322,10 @@ class GPUEcosystem:
         if not self.river.enabled or not self.river.split:
             return None
 
-        # Transfer positions to CPU for island checking
-        positions_np = positions.cpu().numpy()
+        # Check which agents are on island (GPU-resident)
+        on_island = self.river.is_on_island_batch_gpu(positions)
 
-        # Check which agents are on island
-        on_island = np.array([
-            self.river.is_on_island(pos[0], pos[1])
-            for pos in positions_np
-        ], dtype=bool)
-
-        if not np.any(on_island):
+        if not torch.any(on_island):
             return None
 
         # Get modifiers from river config
@@ -349,7 +343,7 @@ class GPUEcosystem:
             return {
                 'speed': speed_modifiers,
                 'reproduction': repro_modifiers,
-                'on_island': torch.tensor(on_island, device=self.device)
+                'on_island': on_island
             }
 
         elif agent_type == 'predator':
@@ -371,7 +365,7 @@ class GPUEcosystem:
                 'speed': speed_modifiers,
                 'hunger': hunger_modifiers,
                 'reproduction': repro_modifiers,
-                'on_island': torch.tensor(on_island, device=self.device)
+                'on_island': on_island
             }
 
         return None
@@ -418,16 +412,14 @@ class GPUEcosystem:
             )
         self.prey_pos[self.prey_alive] = (self.prey_pos[self.prey_alive] + self.prey_vel[self.prey_alive]) % torch.tensor([self.width, self.height], device=self.device)
 
-        # Apply river flow to prey
+        # Apply river flow to prey (GPU-resident)
         if self.river.enabled:
-            alive_prey_pos_np = self.prey_pos[self.prey_alive].cpu().numpy()
-            flows = self.river.get_flow_at_batch(alive_prey_pos_np)
+            flows = self.river.get_flow_at_batch_gpu(self.prey_pos[self.prey_alive])
             if len(flows) > 0:
                 # Better swimmers resist current more
                 alive_swim_speeds = self.prey_swim_speed[self.prey_alive]
                 flow_factors = torch.clamp(1.0 - alive_swim_speeds / 5.0, min=0.0, max=1.0)
-                flow_tensor = torch.tensor(flows, device=self.device, dtype=torch.float32)
-                self.prey_vel[self.prey_alive] += flow_tensor * flow_factors.unsqueeze(1)
+                self.prey_vel[self.prey_alive] += flows * flow_factors.unsqueeze(1)
 
         self.prey_age[self.prey_alive] += 1
         self.prey_repro_timer[self.prey_alive] += 1
@@ -458,16 +450,14 @@ class GPUEcosystem:
             )
         self.pred_pos[self.pred_alive] = (self.pred_pos[self.pred_alive] + self.pred_vel[self.pred_alive]) % torch.tensor([self.width, self.height], device=self.device)
 
-        # Apply river flow to predators
+        # Apply river flow to predators (GPU-resident)
         if self.river.enabled:
-            alive_pred_pos_np = self.pred_pos[self.pred_alive].cpu().numpy()
-            flows = self.river.get_flow_at_batch(alive_pred_pos_np)
+            flows = self.river.get_flow_at_batch_gpu(self.pred_pos[self.pred_alive])
             if len(flows) > 0:
                 # Better swimmers resist current more
                 alive_swim_speeds = self.pred_swim_speed[self.pred_alive]
                 flow_factors = torch.clamp(1.0 - alive_swim_speeds / 5.0, min=0.0, max=1.0)
-                flow_tensor = torch.tensor(flows, device=self.device, dtype=torch.float32)
-                self.pred_vel[self.pred_alive] += flow_tensor * flow_factors.unsqueeze(1)
+                self.pred_vel[self.pred_alive] += flows * flow_factors.unsqueeze(1)
 
         self.pred_age[self.pred_alive] += 1
 
@@ -762,18 +752,16 @@ class GPUEcosystem:
             state['prey_min_swim'] = prey_swim.min().item()
             state['prey_max_swim'] = prey_swim.max().item()
 
-            # Classify prey as land or water specialists
+            # Classify prey as land or water specialists (GPU-resident)
             # Check which prey are in the river vs on island vs on land
-            prey_pos_np = self.prey_pos[self.prey_alive].cpu().numpy()
-            prey_in_river = 0
-            prey_on_island = 0
-            for pos in prey_pos_np:
-                if self.river.is_on_island(pos[0], pos[1]):
-                    prey_on_island += 1
-                elif self.river.is_in_river(pos[0], pos[1]):
-                    prey_in_river += 1
-            state['prey_in_river_pct'] = (prey_in_river / len(prey_pos_np)) * 100 if len(prey_pos_np) > 0 else 0
-            state['prey_on_island_pct'] = (prey_on_island / len(prey_pos_np)) * 100 if len(prey_pos_np) > 0 else 0
+            prey_pos = self.prey_pos[self.prey_alive]
+            prey_on_island_mask = self.river.is_on_island_batch_gpu(prey_pos)
+            prey_in_river_mask = self.river.is_in_river_batch_gpu(prey_pos)
+            prey_on_island = torch.sum(prey_on_island_mask).item()
+            prey_in_river = torch.sum(prey_in_river_mask).item()
+            num_prey = len(prey_pos)
+            state['prey_in_river_pct'] = (prey_in_river / num_prey) * 100 if num_prey > 0 else 0
+            state['prey_on_island_pct'] = (prey_on_island / num_prey) * 100 if num_prey > 0 else 0
         else:
             state['prey_avg_swim'] = 0
             state['prey_std_swim'] = 0
@@ -789,17 +777,15 @@ class GPUEcosystem:
             state['pred_min_swim'] = pred_swim.min().item()
             state['pred_max_swim'] = pred_swim.max().item()
 
-            # Check which predators are in the river vs on island vs on land
-            pred_pos_np = self.pred_pos[self.pred_alive].cpu().numpy()
-            pred_in_river = 0
-            pred_on_island = 0
-            for pos in pred_pos_np:
-                if self.river.is_on_island(pos[0], pos[1]):
-                    pred_on_island += 1
-                elif self.river.is_in_river(pos[0], pos[1]):
-                    pred_in_river += 1
-            state['pred_in_river_pct'] = (pred_in_river / len(pred_pos_np)) * 100 if len(pred_pos_np) > 0 else 0
-            state['pred_on_island_pct'] = (pred_on_island / len(pred_pos_np)) * 100 if len(pred_pos_np) > 0 else 0
+            # Check which predators are in the river vs on island vs on land (GPU-resident)
+            pred_pos = self.pred_pos[self.pred_alive]
+            pred_on_island_mask = self.river.is_on_island_batch_gpu(pred_pos)
+            pred_in_river_mask = self.river.is_in_river_batch_gpu(pred_pos)
+            pred_on_island = torch.sum(pred_on_island_mask).item()
+            pred_in_river = torch.sum(pred_in_river_mask).item()
+            num_pred = len(pred_pos)
+            state['pred_in_river_pct'] = (pred_in_river / num_pred) * 100 if num_pred > 0 else 0
+            state['pred_on_island_pct'] = (pred_on_island / num_pred) * 100 if num_pred > 0 else 0
         else:
             state['pred_avg_swim'] = 0
             state['pred_std_swim'] = 0

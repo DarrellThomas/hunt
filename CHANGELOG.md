@@ -1,5 +1,50 @@
 # Changelog
 
+## 2026-01-17 - Architecture Refactoring Phase 3.1 (GPU River) ✅ COMPLETE
+
+### Added - Phase 3.1: GPU-Resident River System
+- **river_gpu.py**: Fully GPU-accelerated river implementation (230 lines)
+  - `RiverGPU` class: All river calculations performed on GPU
+  - `get_flow_at_batch_gpu()`: Vectorized flow computation using `torch.cdist`
+  - `is_in_river_batch_gpu()`: GPU-resident river boundary detection
+  - `is_on_island_batch_gpu()`: GPU-resident island detection
+  - Eliminates all CPU-GPU transfers for river operations
+  - Identical behavior to CPU river implementation
+- **tests/test_river_gpu.py**: 7 comprehensive tests (all passing)
+  - Tests GPU initialization
+  - Tests flow consistency between CPU and GPU (max error < 1e-5)
+  - Tests is_in_river consistency (100% match rate)
+  - Tests is_on_island consistency (100% match rate)
+  - Tests island has no flow
+  - Tests flow direction correctness
+  - Tests batched performance (1000+ agents)
+
+### Changed - Phase 3.1: GPU Simulation Integration
+- **simulation_gpu.py**: Updated to use RiverGPU
+  - Import changed: `from river_gpu import RiverGPU`
+  - Initialization: `RiverGPU(width, height, device=device)`
+  - `get_island_modifiers()`: Now uses `is_on_island_batch_gpu()` (no CPU transfer)
+  - Prey flow application: Direct GPU tensor operations (no `.cpu().numpy()`)
+  - Predator flow application: Direct GPU tensor operations
+  - Statistics gathering: GPU-resident island/river classification
+  - All river operations now stay on GPU
+
+### Performance Impact - Phase 3.1
+- **Eliminated CPU-GPU transfers**: River checks no longer bounce data between devices
+- **Vectorized operations**: `torch.cdist` replaces per-position loops
+- **Expected speedup**: 20-30% for simulations with river enabled
+- **Memory efficiency**: River path stored once on GPU, no repeated transfers
+- **Scalability**: Batched operations handle thousands of agents efficiently
+
+### Technical Details - Phase 3.1
+- Uses `torch.cdist()` for fast distance calculations to river path points
+- Island detection uses t-parameter along river path (0 to 1)
+- Split channel logic preserved from CPU version
+- Flow direction computed from path tangent vectors
+- All boolean masks remain on GPU for downstream operations
+
+---
+
 ## 2026-01-17 - Architecture Refactoring Phase 2 (N-Species) ✅ COMPLETE
 
 ### Added - Phase 2.2: Dynamic Sensor System
