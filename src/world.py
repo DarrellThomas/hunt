@@ -166,40 +166,71 @@ class World:
         self.prey.extend(new_prey)
         self.predators.extend(new_predators)
 
-        # 7. Emergency extinction prevention - respawn 5 if population hits 0
-        if len(self.prey) < 1:
-            print(f"\n⚠️  PREY EXTINCTION at timestep {self.timestep}! Respawning 5 random prey...")
-            for _ in range(5):
-                x = np.random.uniform(0, self.width)
-                y = np.random.uniform(0, self.height)
-                self.prey.append(Prey(x, y, self.width, self.height))
-
-        if len(self.predators) < 1:
-            print(f"\n⚠️  PREDATOR EXTINCTION at timestep {self.timestep}! Respawning 5 random predators...")
-            for _ in range(5):
-                x = np.random.uniform(0, self.width)
-                y = np.random.uniform(0, self.height)
-                self.predators.append(Predator(x, y, self.width, self.height))
-
-        # 8. Prevent extinction - spawn random agents if population too low
-        # Minimum thresholds scale with world size
-        min_prey = max(10, int(self.width * self.height / 24000))  # ~40 for 1600x1200
-        min_predators = max(3, int(self.width * self.height / 160000))  # ~12 for 1600x1200
-
-        if len(self.prey) < min_prey:
-            for _ in range(min_prey - len(self.prey)):
-                x = np.random.uniform(0, self.width)
-                y = np.random.uniform(0, self.height)
-                self.prey.append(Prey(x, y, self.width, self.height))
-
-        if len(self.predators) < min_predators:
-            for _ in range(min_predators - len(self.predators)):
-                x = np.random.uniform(0, self.width)
-                y = np.random.uniform(0, self.height)
-                self.predators.append(Predator(x, y, self.width, self.height))
+        # 7. Unified extinction prevention
+        self._handle_extinction_prevention()
 
         # 9. Record statistics
         self.record_stats()
+
+    def _handle_extinction_prevention(
+        self,
+        enabled: bool = True,
+        emergency_respawn_count: int = 5,
+        minimum_population: int = 10,
+        scale_with_world_size: bool = True
+    ):
+        """Unified extinction prevention for both emergency and minimum population.
+
+        Args:
+            enabled: Whether extinction prevention is enabled
+            emergency_respawn_count: Number of agents to respawn on complete extinction
+            minimum_population: Baseline minimum population (per species)
+            scale_with_world_size: If True, scale minimum with world area
+        """
+        if not enabled:
+            return
+
+        # Calculate minimum populations (scale with world size if requested)
+        if scale_with_world_size:
+            min_prey = max(minimum_population, int(self.width * self.height / 24000))
+            min_predators = max(minimum_population // 3, int(self.width * self.height / 160000))
+        else:
+            min_prey = minimum_population
+            min_predators = minimum_population // 3
+
+        # Handle prey
+        prey_count = len(self.prey)
+        if prey_count < 1:
+            # Emergency: complete extinction
+            print(f"\n⚠️  PREY EXTINCTION at timestep {self.timestep}! Respawning {emergency_respawn_count} random prey...")
+            for _ in range(emergency_respawn_count):
+                x = np.random.uniform(0, self.width)
+                y = np.random.uniform(0, self.height)
+                self.prey.append(Prey(x, y, self.width, self.height))
+        elif prey_count < min_prey:
+            # Below minimum threshold: gradually repopulate
+            spawn_count = min(min_prey - prey_count, emergency_respawn_count)  # Cap spawn rate
+            for _ in range(spawn_count):
+                x = np.random.uniform(0, self.width)
+                y = np.random.uniform(0, self.height)
+                self.prey.append(Prey(x, y, self.width, self.height))
+
+        # Handle predators
+        pred_count = len(self.predators)
+        if pred_count < 1:
+            # Emergency: complete extinction
+            print(f"\n⚠️  PREDATOR EXTINCTION at timestep {self.timestep}! Respawning {emergency_respawn_count} random predators...")
+            for _ in range(emergency_respawn_count):
+                x = np.random.uniform(0, self.width)
+                y = np.random.uniform(0, self.height)
+                self.predators.append(Predator(x, y, self.width, self.height))
+        elif pred_count < min_predators:
+            # Below minimum threshold: gradually repopulate
+            spawn_count = min(min_predators - pred_count, emergency_respawn_count)  # Cap spawn rate
+            for _ in range(spawn_count):
+                x = np.random.uniform(0, self.width)
+                y = np.random.uniform(0, self.height)
+                self.predators.append(Predator(x, y, self.width, self.height))
 
     def record_stats(self):
         """Record statistics about the current state."""

@@ -628,69 +628,119 @@ class GPUEcosystem:
             self.pred_energy[parents] -= self.pred_repro_cost
             self.pred_repro_timer[parents] = 0
 
-        # Emergency extinction prevention - respawn 5 if population hits 0
-        prey_alive_count = self.prey_alive.sum().item()
-        pred_alive_count = self.pred_alive.sum().item()
-
-        if prey_alive_count < 1:
-            print(f"\n⚠️  PREY EXTINCTION at timestep {self.timestep}! Respawning 5 random prey...")
-            # Find 5 dead prey slots to revive
-            dead_prey = torch.where(~self.prey_alive)[0][:5]
-            if len(dead_prey) > 0:
-                # Random positions across the map
-                self.prey_pos[dead_prey] = torch.rand(len(dead_prey), 2, device=self.device) * torch.tensor([self.width, self.height], device=self.device)
-                self.prey_vel[dead_prey] = torch.randn(len(dead_prey), 2, device=self.device) * 0.1
-                self.prey_age[dead_prey] = 0
-                self.prey_repro_timer[dead_prey] = 0
-                self.prey_alive[dead_prey] = True
-                # Give random individual parameters
-                self.prey_max_age_individual[dead_prey] = torch.clamp(
-                    torch.normal(self.prey_max_age, PREY_LIFESPAN_VARIANCE, size=(len(dead_prey),), device=self.device),
-                    min=100
-                )
-                self.prey_repro_age_individual[dead_prey] = torch.clamp(
-                    torch.normal(self.prey_repro_age, PREY_REPRODUCTION_VARIANCE, size=(len(dead_prey),), device=self.device),
-                    min=50
-                )
-                # Give random swim speeds
-                self.prey_swim_speed[dead_prey] = torch.clamp(
-                    torch.normal(PREY_SWIM_SPEED, 0.2, size=(len(dead_prey),), device=self.device),
-                    min=0.1
-                )
-                # Initialize random brain weights for respawned prey
-                self.prey_weights[dead_prey] = torch.randn(len(dead_prey), self.prey_weight_count, device=self.device) * 0.1
-
-        if pred_alive_count < 1:
-            print(f"\n⚠️  PREDATOR EXTINCTION at timestep {self.timestep}! Respawning 5 random predators...")
-            # Find 5 dead predator slots to revive
-            dead_pred = torch.where(~self.pred_alive)[0][:5]
-            if len(dead_pred) > 0:
-                # Random positions across the map
-                self.pred_pos[dead_pred] = torch.rand(len(dead_pred), 2, device=self.device) * torch.tensor([self.width, self.height], device=self.device)
-                self.pred_vel[dead_pred] = torch.randn(len(dead_pred), 2, device=self.device) * 0.1
-                self.pred_age[dead_pred] = 0
-                self.pred_energy[dead_pred] = float(self.pred_max_energy)
-                self.pred_repro_timer[dead_pred] = 0
-                self.pred_alive[dead_pred] = True
-                # Give random individual parameters
-                self.pred_max_age_individual[dead_pred] = torch.clamp(
-                    torch.normal(self.pred_max_age, PRED_LIFESPAN_VARIANCE, size=(len(dead_pred),), device=self.device),
-                    min=200
-                )
-                self.pred_repro_cooldown_individual[dead_pred] = torch.clamp(
-                    torch.normal(self.pred_repro_cooldown, PRED_REPRODUCTION_VARIANCE, size=(len(dead_pred),), device=self.device),
-                    min=50
-                )
-                # Give random swim speeds
-                self.pred_swim_speed[dead_pred] = torch.clamp(
-                    torch.normal(PRED_SWIM_SPEED, 0.2, size=(len(dead_pred),), device=self.device),
-                    min=0.1
-                )
-                # Initialize random brain weights for respawned predators
-                self.pred_weights[dead_pred] = torch.randn(len(dead_pred), self.pred_weight_count, device=self.device) * 0.1
+        # Unified extinction prevention
+        self._handle_extinction_prevention()
 
         # === REMOVED: Global mutation code (incorrect neuroevolution) ===
         # Mutation now happens ONLY at reproduction with parent weight inheritance
+
+    def _handle_extinction_prevention(
+        self,
+        enabled: bool = True,
+        emergency_respawn_count: int = 5,
+        minimum_population: int = 10,
+        scale_with_world_size: bool = True
+    ):
+        """Unified extinction prevention for both emergency and minimum population.
+
+        Args:
+            enabled: Whether extinction prevention is enabled
+            emergency_respawn_count: Number of agents to respawn on complete extinction
+            minimum_population: Baseline minimum population (per species)
+            scale_with_world_size: If True, scale minimum with world area
+        """
+        if not enabled:
+            return
+
+        # Calculate minimum populations (scale with world size if requested)
+        if scale_with_world_size:
+            min_prey = max(minimum_population, int(self.width * self.height / 24000))
+            min_predators = max(minimum_population // 3, int(self.width * self.height / 160000))
+        else:
+            min_prey = minimum_population
+            min_predators = minimum_population // 3
+
+        prey_alive_count = self.prey_alive.sum().item()
+        pred_alive_count = self.pred_alive.sum().item()
+
+        # Handle prey
+        if prey_alive_count < 1:
+            # Emergency: complete extinction
+            print(f"\n⚠️  PREY EXTINCTION at timestep {self.timestep}! Respawning {emergency_respawn_count} random prey...")
+            dead_prey = torch.where(~self.prey_alive)[0][:emergency_respawn_count]
+            if len(dead_prey) > 0:
+                self._respawn_prey(dead_prey)
+        elif prey_alive_count < min_prey:
+            # Below minimum threshold: gradually repopulate
+            spawn_count = min(min_prey - prey_alive_count, emergency_respawn_count)  # Cap spawn rate
+            dead_prey = torch.where(~self.prey_alive)[0][:spawn_count]
+            if len(dead_prey) > 0:
+                self._respawn_prey(dead_prey)
+
+        # Handle predators
+        if pred_alive_count < 1:
+            # Emergency: complete extinction
+            print(f"\n⚠️  PREDATOR EXTINCTION at timestep {self.timestep}! Respawning {emergency_respawn_count} random predators...")
+            dead_pred = torch.where(~self.pred_alive)[0][:emergency_respawn_count]
+            if len(dead_pred) > 0:
+                self._respawn_predators(dead_pred)
+        elif pred_alive_count < min_predators:
+            # Below minimum threshold: gradually repopulate
+            spawn_count = min(min_predators - pred_alive_count, emergency_respawn_count)  # Cap spawn rate
+            dead_pred = torch.where(~self.pred_alive)[0][:spawn_count]
+            if len(dead_pred) > 0:
+                self._respawn_predators(dead_pred)
+
+    def _respawn_prey(self, indices):
+        """Respawn prey at given indices with random parameters."""
+        # Random positions across the map
+        self.prey_pos[indices] = torch.rand(len(indices), 2, device=self.device) * torch.tensor([self.width, self.height], device=self.device)
+        self.prey_vel[indices] = torch.randn(len(indices), 2, device=self.device) * 0.1
+        self.prey_age[indices] = 0
+        self.prey_repro_timer[indices] = 0
+        self.prey_alive[indices] = True
+        # Give random individual parameters
+        self.prey_max_age_individual[indices] = torch.clamp(
+            torch.normal(self.prey_max_age, PREY_LIFESPAN_VARIANCE, size=(len(indices),), device=self.device),
+            min=100
+        )
+        self.prey_repro_age_individual[indices] = torch.clamp(
+            torch.normal(self.prey_repro_age, PREY_REPRODUCTION_VARIANCE, size=(len(indices),), device=self.device),
+            min=50
+        )
+        # Give random swim speeds
+        self.prey_swim_speed[indices] = torch.clamp(
+            torch.normal(PREY_SWIM_SPEED, 0.2, size=(len(indices),), device=self.device),
+            min=0.1
+        )
+        # Initialize random brain weights
+        self.prey_weights[indices] = torch.randn(len(indices), self.prey_weight_count, device=self.device) * 0.1
+
+    def _respawn_predators(self, indices):
+        """Respawn predators at given indices with random parameters."""
+        # Random positions across the map
+        self.pred_pos[indices] = torch.rand(len(indices), 2, device=self.device) * torch.tensor([self.width, self.height], device=self.device)
+        self.pred_vel[indices] = torch.randn(len(indices), 2, device=self.device) * 0.1
+        self.pred_age[indices] = 0
+        self.pred_energy[indices] = float(self.pred_max_energy)
+        self.pred_repro_timer[indices] = 0
+        self.pred_alive[indices] = True
+        # Give random individual parameters
+        self.pred_max_age_individual[indices] = torch.clamp(
+            torch.normal(self.pred_max_age, PRED_LIFESPAN_VARIANCE, size=(len(indices),), device=self.device),
+            min=200
+        )
+        self.pred_repro_cooldown_individual[indices] = torch.clamp(
+            torch.normal(self.pred_repro_cooldown, PRED_REPRODUCTION_VARIANCE, size=(len(indices),), device=self.device),
+            min=50
+        )
+        # Give random swim speeds
+        self.pred_swim_speed[indices] = torch.clamp(
+            torch.normal(PRED_SWIM_SPEED, 0.2, size=(len(indices),), device=self.device),
+            min=0.1
+        )
+        # Initialize random brain weights
+        self.pred_weights[indices] = torch.randn(len(indices), self.pred_weight_count, device=self.device) * 0.1
 
     def get_state_cpu(self):
         """Transfer current state to CPU for visualization and analysis."""
