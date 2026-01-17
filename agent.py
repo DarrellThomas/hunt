@@ -141,8 +141,11 @@ class Prey(Agent):
 
         self.max_speed = 3.0
         self.max_acceleration = 0.5
-        self.max_lifespan = 500
-        self.reproduction_age = 200
+
+        # Add natural variation to lifespan and reproduction timing
+        # Normal distribution prevents synchronized birth/death waves
+        self.max_lifespan = max(100, int(np.random.normal(500, 50)))  # Mean 500, std 50
+        self.reproduction_age = max(50, int(np.random.normal(200, 20)))  # Mean 200, std 20
         self.time_since_reproduction = 0
 
     def observe(self, predator_positions, predator_velocities, prey_positions, prey_velocities, my_index):
@@ -227,14 +230,18 @@ class Predator(Agent):
 
         self.max_speed = 2.5  # Slightly slower than prey
         self.max_acceleration = 0.4
-        self.max_lifespan = 800
+
+        # Add natural variation to lifespan and reproduction timing
+        # Normal distribution prevents synchronized birth/death waves
+        self.max_lifespan = max(200, int(np.random.normal(800, 80)))  # Mean 800, std 80
+        self.reproduction_cooldown = max(50, int(np.random.normal(150, 15)))  # Mean 150, std 15
+
         self.energy = 150
         self.max_energy = 150
         self.energy_cost_per_step = 0.3
         self.energy_gain_per_kill = 60
         self.reproduction_threshold = 120
         self.reproduction_cost = 40
-        self.reproduction_cooldown = 150  # Minimum time between reproductions
         self.time_since_reproduction = 0
         self.catch_radius = 8.0  # Larger radius to help random movement succeed occasionally
 

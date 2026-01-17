@@ -82,6 +82,17 @@ class GPUEcosystem:
         self.prey_repro_timer = torch.zeros(num_prey, device=device)
         self.prey_alive = torch.ones(num_prey, dtype=torch.bool, device=device)
 
+        # Individual lifespan and reproduction timing for each prey (normal distribution)
+        # Prevents synchronized birth/death waves
+        self.prey_max_age_individual = torch.clamp(
+            torch.normal(self.prey_max_age, 50, size=(num_prey,), device=device),
+            min=100
+        )
+        self.prey_repro_age_individual = torch.clamp(
+            torch.normal(self.prey_repro_age, 20, size=(num_prey,), device=device),
+            min=50
+        )
+
         # Initialize predators on GPU
         self.pred_pos = torch.rand(num_predators, 2, device=device) * torch.tensor([width, height], device=device)
         self.pred_vel = torch.randn(num_predators, 2, device=device) * 0.1
@@ -90,6 +101,17 @@ class GPUEcosystem:
         self.pred_energy = torch.full((num_predators,), self.pred_max_energy, device=device)
         self.pred_repro_timer = torch.zeros(num_predators, device=device)
         self.pred_alive = torch.ones(num_predators, dtype=torch.bool, device=device)
+
+        # Individual lifespan and reproduction timing for each predator (normal distribution)
+        # Prevents synchronized birth/death waves
+        self.pred_max_age_individual = torch.clamp(
+            torch.normal(self.pred_max_age, 80, size=(num_predators,), device=device),
+            min=200
+        )
+        self.pred_repro_cooldown_individual = torch.clamp(
+            torch.normal(self.pred_repro_cooldown, 15, size=(num_predators,), device=device),
+            min=50
+        )
 
         # Neural networks
         self.prey_brain = NeuralNetBatch(num_prey, input_size=32, hidden_size=32, output_size=2, device=device)
@@ -280,13 +302,13 @@ class GPUEcosystem:
             alive_indices = torch.where(self.prey_alive)[0]
             self.prey_alive[alive_indices[prey_caught]] = False
 
-        # 4. Deaths
-        self.prey_alive &= self.prey_age < self.prey_max_age
-        self.pred_alive &= (self.pred_age < self.pred_max_age) & (self.pred_energy > 0)
+        # 4. Deaths (using individual age limits - prevents synchronized deaths)
+        self.prey_alive &= self.prey_age < self.prey_max_age_individual
+        self.pred_alive &= (self.pred_age < self.pred_max_age_individual) & (self.pred_energy > 0)
 
-        # 5. Reproduction (simplified - just respawn with mutation)
-        can_repro_prey = self.prey_alive & (self.prey_repro_timer >= self.prey_repro_age)
-        can_repro_pred = self.pred_alive & (self.pred_energy >= self.pred_repro_threshold) & (self.pred_repro_timer >= self.pred_repro_cooldown)
+        # 5. Reproduction (using individual timing - prevents synchronized births)
+        can_repro_prey = self.prey_alive & (self.prey_repro_timer >= self.prey_repro_age_individual)
+        can_repro_pred = self.pred_alive & (self.pred_energy >= self.pred_repro_threshold) & (self.pred_repro_timer >= self.pred_repro_cooldown_individual)
 
         # Respawn dead agents as offspring of survivors
         dead_prey_idx = torch.where(~self.prey_alive)[0]
@@ -300,6 +322,15 @@ class GPUEcosystem:
             self.prey_age[dead_prey_idx] = 0
             self.prey_repro_timer[dead_prey_idx] = 0
             self.prey_alive[dead_prey_idx] = True
+            # Give offspring randomized individual lifespans and reproduction ages
+            self.prey_max_age_individual[dead_prey_idx] = torch.clamp(
+                torch.normal(self.prey_max_age, 50, size=(len(dead_prey_idx),), device=self.device),
+                min=100
+            )
+            self.prey_repro_age_individual[dead_prey_idx] = torch.clamp(
+                torch.normal(self.prey_repro_age, 20, size=(len(dead_prey_idx),), device=self.device),
+                min=50
+            )
             self.prey_repro_timer[parents] = 0  # Reset parent timers
 
         dead_pred_idx = torch.where(~self.pred_alive)[0]
@@ -313,6 +344,15 @@ class GPUEcosystem:
             self.pred_energy[dead_pred_idx] = self.pred_max_energy
             self.pred_repro_timer[dead_pred_idx] = 0
             self.pred_alive[dead_pred_idx] = True
+            # Give offspring randomized individual lifespans and reproduction cooldowns
+            self.pred_max_age_individual[dead_pred_idx] = torch.clamp(
+                torch.normal(self.pred_max_age, 80, size=(len(dead_pred_idx),), device=self.device),
+                min=200
+            )
+            self.pred_repro_cooldown_individual[dead_pred_idx] = torch.clamp(
+                torch.normal(self.pred_repro_cooldown, 15, size=(len(dead_pred_idx),), device=self.device),
+                min=50
+            )
             self.pred_energy[parents] -= self.pred_repro_cost
             self.pred_repro_timer[parents] = 0
 
@@ -331,6 +371,15 @@ class GPUEcosystem:
                 self.prey_age[dead_prey] = 0
                 self.prey_repro_timer[dead_prey] = 0
                 self.prey_alive[dead_prey] = True
+                # Give random individual parameters
+                self.prey_max_age_individual[dead_prey] = torch.clamp(
+                    torch.normal(self.prey_max_age, 50, size=(len(dead_prey),), device=self.device),
+                    min=100
+                )
+                self.prey_repro_age_individual[dead_prey] = torch.clamp(
+                    torch.normal(self.prey_repro_age, 20, size=(len(dead_prey),), device=self.device),
+                    min=50
+                )
 
         if pred_alive_count < 1:
             print(f"\n⚠️  PREDATOR EXTINCTION at timestep {self.timestep}! Respawning 5 random predators...")
@@ -344,6 +393,15 @@ class GPUEcosystem:
                 self.pred_energy[dead_pred] = self.pred_max_energy
                 self.pred_repro_timer[dead_pred] = 0
                 self.pred_alive[dead_pred] = True
+                # Give random individual parameters
+                self.pred_max_age_individual[dead_pred] = torch.clamp(
+                    torch.normal(self.pred_max_age, 80, size=(len(dead_pred),), device=self.device),
+                    min=200
+                )
+                self.pred_repro_cooldown_individual[dead_pred] = torch.clamp(
+                    torch.normal(self.pred_repro_cooldown, 15, size=(len(dead_pred),), device=self.device),
+                    min=50
+                )
 
         # Mutate brains occasionally
         if self.timestep % 50 == 0:
