@@ -9,6 +9,7 @@ import torch.nn as nn
 import numpy as np
 from config import *  # Import all configuration parameters
 from river import River
+from utils import toroidal_distance_torch
 
 
 class NeuralNetBatch(nn.Module):
@@ -145,27 +146,12 @@ class GPUEcosystem:
         print(f"Prey: {num_prey}, Predators: {num_predators}")
 
     def compute_toroidal_distances(self, pos1, pos2):
-        """Compute all pairwise distances with toroidal wrapping on GPU."""
-        # pos1: (N, 2), pos2: (M, 2)
-        # Returns: (N, M) distances, (N, M, 2) direction vectors
+        """Compute all pairwise distances with toroidal wrapping on GPU.
 
-        # Broadcast to compute all pairs: (N, 1, 2) - (1, M, 2) = (N, M, 2)
-        diff = pos1.unsqueeze(1) - pos2.unsqueeze(0)
-
-        # Toroidal wrapping
-        diff[:, :, 0] = torch.where(
-            torch.abs(diff[:, :, 0]) > self.width / 2,
-            diff[:, :, 0] - torch.sign(diff[:, :, 0]) * self.width,
-            diff[:, :, 0]
-        )
-        diff[:, :, 1] = torch.where(
-            torch.abs(diff[:, :, 1]) > self.height / 2,
-            diff[:, :, 1] - torch.sign(diff[:, :, 1]) * self.height,
-            diff[:, :, 1]
-        )
-
-        distances = torch.norm(diff, dim=2)
-        return distances, diff
+        DEPRECATED: Wrapper for toroidal_distance_torch from utils.py
+        """
+        # Use shared utility function
+        return toroidal_distance_torch(pos1, pos2, self.width, self.height)
 
     def _calc_weight_count(self, arch):
         """Calculate total number of weights and biases for a network architecture."""

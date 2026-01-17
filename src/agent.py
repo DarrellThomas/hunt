@@ -5,6 +5,7 @@ Optimized agent classes with vectorized distance calculations.
 import numpy as np
 from brain import Brain
 from config import *  # Import all configuration parameters
+from utils import toroidal_distance_numpy
 
 
 class Agent:
@@ -118,6 +119,8 @@ def vectorized_distances(pos, other_positions, world_width, world_height):
     """
     Vectorized distance calculation with toroidal wrapping.
 
+    DEPRECATED: Wrapper for toroidal_distance_numpy from utils.py
+
     Args:
         pos: Single position [x, y]
         other_positions: Array of positions (N, 2)
@@ -130,19 +133,8 @@ def vectorized_distances(pos, other_positions, world_width, world_height):
     if len(other_positions) == 0:
         return np.array([]), np.array([]).reshape(0, 2)
 
-    # Calculate raw differences
-    dx = other_positions[:, 0] - pos[0]
-    dy = other_positions[:, 1] - pos[1]
-
-    # Apply toroidal wrapping - take shortest path
-    dx = np.where(np.abs(dx) > world_width / 2, dx - np.sign(dx) * world_width, dx)
-    dy = np.where(np.abs(dy) > world_height / 2, dy - np.sign(dy) * world_height, dy)
-
-    # Calculate distances
-    distances = np.sqrt(dx**2 + dy**2)
-    vectors = np.column_stack([dx, dy])
-
-    return distances, vectors
+    # Use shared utility function
+    return toroidal_distance_numpy(pos, other_positions, world_width, world_height)
 
 
 class Prey(Agent):
