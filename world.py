@@ -148,7 +148,22 @@ class World:
         self.prey.extend(new_prey)
         self.predators.extend(new_predators)
 
-        # 7. Prevent extinction - spawn random agents if population too low
+        # 7. Emergency extinction prevention - respawn 5 if population hits 0
+        if len(self.prey) < 1:
+            print(f"\n⚠️  PREY EXTINCTION at timestep {self.timestep}! Respawning 5 random prey...")
+            for _ in range(5):
+                x = np.random.uniform(0, self.width)
+                y = np.random.uniform(0, self.height)
+                self.prey.append(Prey(x, y, self.width, self.height))
+
+        if len(self.predators) < 1:
+            print(f"\n⚠️  PREDATOR EXTINCTION at timestep {self.timestep}! Respawning 5 random predators...")
+            for _ in range(5):
+                x = np.random.uniform(0, self.width)
+                y = np.random.uniform(0, self.height)
+                self.predators.append(Predator(x, y, self.width, self.height))
+
+        # 8. Prevent extinction - spawn random agents if population too low
         # Minimum thresholds scale with world size
         min_prey = max(10, int(self.width * self.height / 24000))  # ~40 for 1600x1200
         min_predators = max(3, int(self.width * self.height / 160000))  # ~12 for 1600x1200
@@ -165,7 +180,7 @@ class World:
                 y = np.random.uniform(0, self.height)
                 self.predators.append(Predator(x, y, self.width, self.height))
 
-        # 8. Record statistics
+        # 9. Record statistics
         self.record_stats()
 
     def record_stats(self):

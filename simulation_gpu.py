@@ -316,6 +316,35 @@ class GPUEcosystem:
             self.pred_energy[parents] -= self.pred_repro_cost
             self.pred_repro_timer[parents] = 0
 
+        # Emergency extinction prevention - respawn 5 if population hits 0
+        prey_alive_count = self.prey_alive.sum().item()
+        pred_alive_count = self.pred_alive.sum().item()
+
+        if prey_alive_count < 1:
+            print(f"\n⚠️  PREY EXTINCTION at timestep {self.timestep}! Respawning 5 random prey...")
+            # Find 5 dead prey slots to revive
+            dead_prey = torch.where(~self.prey_alive)[0][:5]
+            if len(dead_prey) > 0:
+                # Random positions across the map
+                self.prey_pos[dead_prey] = torch.rand(len(dead_prey), 2, device=self.device) * torch.tensor([self.width, self.height], device=self.device)
+                self.prey_vel[dead_prey] = torch.randn(len(dead_prey), 2, device=self.device) * 0.1
+                self.prey_age[dead_prey] = 0
+                self.prey_repro_timer[dead_prey] = 0
+                self.prey_alive[dead_prey] = True
+
+        if pred_alive_count < 1:
+            print(f"\n⚠️  PREDATOR EXTINCTION at timestep {self.timestep}! Respawning 5 random predators...")
+            # Find 5 dead predator slots to revive
+            dead_pred = torch.where(~self.pred_alive)[0][:5]
+            if len(dead_pred) > 0:
+                # Random positions across the map
+                self.pred_pos[dead_pred] = torch.rand(len(dead_pred), 2, device=self.device) * torch.tensor([self.width, self.height], device=self.device)
+                self.pred_vel[dead_pred] = torch.randn(len(dead_pred), 2, device=self.device) * 0.1
+                self.pred_age[dead_pred] = 0
+                self.pred_energy[dead_pred] = self.pred_max_energy
+                self.pred_repro_timer[dead_pred] = 0
+                self.pred_alive[dead_pred] = True
+
         # Mutate brains occasionally
         if self.timestep % 50 == 0:
             self.prey_brain.mutate_random(None, mutation_rate * 0.01)
