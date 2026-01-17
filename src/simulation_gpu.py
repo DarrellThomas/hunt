@@ -128,9 +128,17 @@ class GPUEcosystem:
             min=50
         )
 
-        # Neural networks
-        self.prey_brain = NeuralNetBatch(num_prey, input_size=32, hidden_size=32, output_size=2, device=device)
-        self.pred_brain = NeuralNetBatch(num_predators, input_size=21, hidden_size=32, output_size=2, device=device)
+        # Per-agent neural network weights (proper neuroevolution)
+        # Each agent has individual weights that are inherited and mutated at reproduction
+        self.prey_arch = {'input': 32, 'hidden': [32, 32], 'output': 2}
+        self.pred_arch = {'input': 21, 'hidden': [32, 32], 'output': 2}
+
+        self.prey_weight_count = self._calc_weight_count(self.prey_arch)
+        self.pred_weight_count = self._calc_weight_count(self.pred_arch)
+
+        # Initialize random weights for each agent (small initial values)
+        self.prey_weights = torch.randn(num_prey, self.prey_weight_count, device=device) * 0.1
+        self.pred_weights = torch.randn(num_predators, self.pred_weight_count, device=device) * 0.1
 
         print(f"GPU Ecosystem initialized on {device}")
         print(f"World: {width}x{height}")
@@ -158,6 +166,65 @@ class GPUEcosystem:
 
         distances = torch.norm(diff, dim=2)
         return distances, diff
+
+    def _calc_weight_count(self, arch):
+        """Calculate total number of weights and biases for a network architecture."""
+        sizes = [arch['input']] + arch['hidden'] + [arch['output']]
+        count = 0
+        for i in range(len(sizes) - 1):
+            count += sizes[i] * sizes[i+1]  # weights
+            count += sizes[i+1]              # biases
+        return count
+
+    def _batch_forward(self, inputs, weights, arch, alive_mask):
+        """
+        Batched forward pass with per-agent weights.
+
+        Args:
+            inputs: (num_alive, input_size) observations for ALIVE agents only
+            weights: (num_total, weight_count) per-agent weights for ALL agents
+            arch: Network architecture dict
+            alive_mask: (num_total,) boolean mask of alive agents
+
+        Returns:
+            outputs: (num_alive, output_size) actions for alive agents
+        """
+        sizes = [arch['input']] + arch['hidden'] + [arch['output']]
+
+        # inputs already only contains alive agents
+        # Extract weights for alive agents
+        alive_weights = weights[alive_mask]
+
+        if len(alive_weights) == 0:
+            return torch.zeros(0, arch['output'], device=self.device)
+
+        # Forward pass through layers
+        x = inputs  # inputs are already filtered to alive agents
+        offset = 0
+
+        for i in range(len(sizes) - 1):
+            in_size, out_size = sizes[i], sizes[i+1]
+
+            # Extract weights and biases for this layer
+            w_count = in_size * out_size
+            b_count = out_size
+
+            # Reshape weights: (alive_count, in_size, out_size)
+            W = alive_weights[:, offset:offset+w_count].view(-1, in_size, out_size)
+            offset += w_count
+
+            # Biases: (alive_count, out_size)
+            b = alive_weights[:, offset:offset+b_count]
+            offset += b_count
+
+            # Batched matrix multiply: (alive, 1, in) @ (alive, in, out) → (alive, 1, out)
+            x = torch.bmm(x.unsqueeze(1), W).squeeze(1) + b
+
+            # Activation (tanh for all layers)
+            x = torch.tanh(x)
+
+        # Return outputs for alive agents only
+        return x
 
     def observe_prey(self):
         """Compute observations for all prey in parallel (optimized with sampling)."""
@@ -329,11 +396,13 @@ class GPUEcosystem:
 
         # 1. Observations and actions
         prey_obs = self.observe_prey()
-        prey_actions = self.prey_brain(prey_obs)  # Batched forward pass!
+        # Use per-agent weights for forward pass (returns actions for alive agents only)
+        prey_actions = self._batch_forward(prey_obs, self.prey_weights, self.prey_arch, self.prey_alive)
         self.prey_acc[self.prey_alive] = prey_actions * self.prey_max_accel
 
         pred_obs = self.observe_predators()
-        pred_actions = self.pred_brain(pred_obs)  # Batched forward pass!
+        # Use per-agent weights for forward pass (returns actions for alive agents only)
+        pred_actions = self._batch_forward(pred_obs, self.pred_weights, self.pred_arch, self.pred_alive)
         self.pred_acc[self.pred_alive] = pred_actions * self.pred_max_accel
 
         # 2. Physics update (vectorized)
@@ -512,6 +581,13 @@ class GPUEcosystem:
                 torch.normal(self.prey_repro_age, PREY_REPRODUCTION_VARIANCE, size=(len(dead_prey_idx),), device=self.device),
                 min=50
             )
+            # === CRITICAL: Inherit brain weights from parents ===
+            self.prey_weights[dead_prey_idx] = self.prey_weights[parents].clone()
+
+            # === CRITICAL: Mutate offspring brain weights ===
+            mutation = torch.randn_like(self.prey_weights[dead_prey_idx]) * mutation_rate
+            self.prey_weights[dead_prey_idx] += mutation
+
             # Inherit and mutate swim speed from parents
             parent_swim_speeds = self.prey_swim_speed[parents]
             self.prey_swim_speed[dead_prey_idx] = torch.clamp(
@@ -550,6 +626,13 @@ class GPUEcosystem:
                 torch.normal(self.pred_repro_cooldown, PRED_REPRODUCTION_VARIANCE, size=(len(dead_pred_idx),), device=self.device),
                 min=50
             )
+            # === CRITICAL: Inherit brain weights from parents ===
+            self.pred_weights[dead_pred_idx] = self.pred_weights[parents].clone()
+
+            # === CRITICAL: Mutate offspring brain weights ===
+            mutation = torch.randn_like(self.pred_weights[dead_pred_idx]) * mutation_rate
+            self.pred_weights[dead_pred_idx] += mutation
+
             # Inherit and mutate swim speed from parents
             parent_swim_speeds = self.pred_swim_speed[parents]
             self.pred_swim_speed[dead_pred_idx] = torch.clamp(
@@ -588,6 +671,8 @@ class GPUEcosystem:
                     torch.normal(PREY_SWIM_SPEED, 0.2, size=(len(dead_prey),), device=self.device),
                     min=0.1
                 )
+                # Initialize random brain weights for respawned prey
+                self.prey_weights[dead_prey] = torch.randn(len(dead_prey), self.prey_weight_count, device=self.device) * 0.1
 
         if pred_alive_count < 1:
             print(f"\n⚠️  PREDATOR EXTINCTION at timestep {self.timestep}! Respawning 5 random predators...")
@@ -615,11 +700,11 @@ class GPUEcosystem:
                     torch.normal(PRED_SWIM_SPEED, 0.2, size=(len(dead_pred),), device=self.device),
                     min=0.1
                 )
+                # Initialize random brain weights for respawned predators
+                self.pred_weights[dead_pred] = torch.randn(len(dead_pred), self.pred_weight_count, device=self.device) * 0.1
 
-        # Mutate brains occasionally
-        if self.timestep % 50 == 0:
-            self.prey_brain.mutate_random(None, mutation_rate * 0.01)
-            self.pred_brain.mutate_random(None, mutation_rate * 0.01)
+        # === REMOVED: Global mutation code (incorrect neuroevolution) ===
+        # Mutation now happens ONLY at reproduction with parent weight inheritance
 
     def get_state_cpu(self):
         """Transfer current state to CPU for visualization and analysis."""
