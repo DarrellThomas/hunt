@@ -25,7 +25,7 @@ ecosystem = GPUEcosystem(
 )
 
 # Training parameters
-TARGET_TIMESTEPS = 50000  # Run for 50K timesteps (adjust as needed)
+TARGET_TIMESTEPS = 500  # Run for 50K timesteps (adjust as needed)
 SAVE_INTERVAL = 1000      # Save stats every 1000 steps
 LOG_INTERVAL = 100        # Print progress every 100 steps
 

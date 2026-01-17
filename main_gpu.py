@@ -36,9 +36,20 @@ class GPUVisualizer:
         self.text_color = (200, 200, 200)
         self.ui_bg_color = (20, 20, 30)
 
+        # Statistics tracking
+        self.stats = {
+            'timesteps': [],
+            'prey_count': [],
+            'pred_count': [],
+            'prey_avg_age': [],
+            'pred_avg_age': [],
+            'pred_avg_energy': [],
+        }
+
         print("GPU Visualizer initialized")
         print(f"Display: {screen_width}x{screen_height}")
         print(f"Target FPS: {fps}")
+        print(f"Auto-save: Every 1000 steps to stats_autosave.npz")
 
     def draw(self):
         """Draw current state."""
@@ -115,8 +126,8 @@ class GPUVisualizer:
                     paused = True
         return True, paused
 
-    def run(self, steps_per_frame=1, print_interval=500):
-        """Run simulation."""
+    def run(self, steps_per_frame=1, print_interval=500, autosave_interval=1000):
+        """Run simulation with automatic data collection."""
         running = True
         paused = False
 
@@ -127,6 +138,7 @@ class GPUVisualizer:
         print(f"Agents: {self.ecosystem.num_prey} prey + {self.ecosystem.num_predators} predators")
         print(f"Total: {self.ecosystem.num_prey + self.ecosystem.num_predators} agents")
         print(f"Device: {self.ecosystem.device}")
+        print(f"Stats autosave: Every {autosave_interval} steps")
         print("="*70 + "\n")
 
         try:
@@ -139,6 +151,22 @@ class GPUVisualizer:
                     for _ in range(steps_per_frame):
                         self.ecosystem.step(mutation_rate=0.1)
 
+                        # Collect stats every 10 steps
+                        if self.ecosystem.timestep % 10 == 0:
+                            state = self.ecosystem.get_state_cpu()
+                            self.stats['timesteps'].append(self.ecosystem.timestep)
+                            self.stats['prey_count'].append(state['prey_count'])
+                            self.stats['pred_count'].append(state['pred_count'])
+                            self.stats['prey_avg_age'].append(state['prey_avg_age'])
+                            self.stats['pred_avg_age'].append(state['pred_avg_age'])
+                            self.stats['pred_avg_energy'].append(state['pred_avg_energy'])
+
+                        # Autosave stats
+                        if self.ecosystem.timestep % autosave_interval == 0:
+                            np.savez('stats_autosave.npz', **self.stats)
+                            print(f"  → Stats autosaved at timestep {self.ecosystem.timestep}")
+
+                        # Print progress
                         if self.ecosystem.timestep % print_interval == 0:
                             state = self.ecosystem.get_state_cpu()
                             print(f"Step {self.ecosystem.timestep}: "
@@ -158,6 +186,12 @@ class GPUVisualizer:
             state = self.ecosystem.get_state_cpu()
             print(f"Final: {state['prey_count']} prey, {state['pred_count']} predators")
             print(f"Total timesteps: {self.ecosystem.timestep}")
+
+            # Final save
+            np.savez('stats_autosave.npz', **self.stats)
+            print(f"\n✓ Final stats saved to: stats_autosave.npz")
+            print(f"✓ Total data points collected: {len(self.stats['timesteps'])}")
+
             pygame.quit()
 
 
