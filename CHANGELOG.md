@@ -1,5 +1,60 @@
 # Changelog
 
+## 2026-01-17 - Architecture Refactoring Phase 3 (Optimization) ✅ COMPLETE
+
+### Added - Phase 3.2: Generic Trait System
+- **traits.py**: Flexible evolvable trait system (250 lines)
+  - `Trait` dataclass: Generic definition for any evolvable property
+    - `sample_initial()`: Generate initial trait value from normal distribution
+    - `mutate()`: Apply Gaussian mutation with configurable std
+    - Automatic bounds enforcement (min/max clamping)
+  - `TraitCollection`: Manage multiple traits per agent type
+    - `sample_initial_values()`: Initialize all traits for new agent
+    - `mutate_values()`: Mutate all traits during reproduction
+  - `COMMON_PREY_TRAITS`: Predefined traits (max_speed, swim_speed, max_acceleration)
+  - `COMMON_PREDATOR_TRAITS`: Predefined traits (includes max_energy)
+- **tests/test_traits.py**: 8 comprehensive tests (all passing)
+  - Tests trait initialization
+  - Tests initial value sampling (normal distribution)
+  - Tests mutation with proper scaling
+  - Tests bounds clamping
+  - Tests TraitCollection management
+  - Tests common trait definitions
+  - Tests multi-generation inheritance
+  - Tests mutation rate scaling
+
+### Benefits - Phase 3.2: Trait System
+- **Easy extensibility**: Add new evolvable traits without modifying agent code
+- **Consistent evolution**: All traits use same mutation/inheritance logic
+- **Configuration-driven**: Traits defined declaratively with clear parameters
+- **Type-safe**: Dataclass provides validation and IDE support
+- **Testable**: Generic system easier to test than agent-specific code
+- **Flexible**: Can define traits for any numeric property (speed, vision, stamina, etc.)
+
+### Usage Example - Phase 3.2
+```python
+# Define custom traits
+herbivore_traits = TraitCollection({
+    'speed': Trait('speed', 2.5, 0.2, 0.15, 0.5, 8.0),
+    'vision': Trait('vision', 100.0, 10.0, 15.0, 20.0, 300.0),
+    'stamina': Trait('stamina', 100.0, 10.0, 8.0, 20.0, 200.0),
+})
+
+# Create initial agent
+initial_values = herbivore_traits.sample_initial_values()
+agent_speed = initial_values['speed']  # Use in agent
+
+# Reproduce with mutation
+child_values = herbivore_traits.mutate_values(initial_values, mutation_rate=0.1)
+```
+
+### Next Steps - Phase 3.2
+The trait system is ready to use but not yet integrated into agent classes.
+Future work could optionally integrate traits into Agent/Prey/Predator classes
+to replace hardcoded evolvable properties like swim_speed.
+
+---
+
 ## 2026-01-17 - Architecture Refactoring Phase 3.1 (GPU River) ✅ COMPLETE
 
 ### Added - Phase 3.1: GPU-Resident River System
