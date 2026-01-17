@@ -4,6 +4,8 @@ A neuroevolution simulation where predators and prey both learn to survive throu
 
 ## Quick Start
 
+**🎯 New to this? → [EZ_README.md](EZ_README.md) - Step-by-step Windows setup guide for beginners**
+
 **Cross-platform (Windows/macOS/Linux):**
 
 ```bash
