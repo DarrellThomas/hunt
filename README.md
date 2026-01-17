@@ -4,25 +4,27 @@ A neuroevolution simulation where predators and prey both learn to survive throu
 
 ## Quick Start
 
-From the project root:
+**Cross-platform (Windows/macOS/Linux):**
 
 ```bash
 # CPU version (recommended for < 1000 agents)
-python3 run.py
+python run.py
 
 # GPU version (recommended for 1000+ agents)
-python3 run_gpu.py
-
-# Overnight training
-./start_overnight.sh
+python run_gpu.py
 ```
 
-Or run directly from src/:
+**Overnight training:**
+- Linux/macOS: `./start_overnight.sh`
+- Windows (CMD): `start_overnight.bat`
+- Windows (PowerShell): `.\start_overnight.ps1`
+
+**Or run directly from src/:**
 
 ```bash
 cd src
-python3 main.py          # CPU version
-python3 main_gpu.py      # GPU version
+python main.py          # CPU version
+python main_gpu.py      # GPU version
 ```
 
 ## Project Structure
@@ -70,9 +72,15 @@ See [docs/](docs/) for complete documentation.
 
 ## Requirements
 
+**Cross-Platform Support:**
+- ✅ Windows 10/11
+- ✅ macOS (Intel/Apple Silicon)
+- ✅ Linux
+
+**Dependencies:**
 - Python 3.8+
 - NumPy, Pygame, Matplotlib
-- PyTorch + CUDA (for GPU version)
+- PyTorch + CUDA (for GPU version, optional)
 
 ## Documentation
 
