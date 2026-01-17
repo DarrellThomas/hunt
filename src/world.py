@@ -4,6 +4,7 @@ Optimized world simulation with vectorized operations.
 
 import numpy as np
 from agent import Prey, Predator
+from river import River
 
 
 class World:
@@ -21,6 +22,9 @@ class World:
         self.width = width
         self.height = height
         self.timestep = 0
+
+        # Create river
+        self.river = River(width, height)
 
         # Create initial populations
         self.prey = []
@@ -74,10 +78,24 @@ class World:
         # 2. Update physics
         for prey in self.prey:
             prey.update_physics()
+            # Apply river flow (reduced by swim speed)
+            if self.river.enabled:
+                flow_x, flow_y = self.river.get_flow_at(prey.pos[0], prey.pos[1])
+                # Better swimmers resist current more (swim_speed acts as resistance)
+                flow_factor = max(0, 1.0 - prey.swim_speed / 5.0)  # Higher swim speed = less affected
+                prey.vel[0] += flow_x * flow_factor
+                prey.vel[1] += flow_y * flow_factor
             prey.time_since_reproduction += 1
 
         for predator in self.predators:
             predator.update_physics()
+            # Apply river flow (reduced by swim speed)
+            if self.river.enabled:
+                flow_x, flow_y = self.river.get_flow_at(predator.pos[0], predator.pos[1])
+                # Better swimmers resist current more (swim_speed acts as resistance)
+                flow_factor = max(0, 1.0 - predator.swim_speed / 5.0)  # Higher swim speed = less affected
+                predator.vel[0] += flow_x * flow_factor
+                predator.vel[1] += flow_y * flow_factor
             predator.update_energy()
             predator.time_since_reproduction += 1
 

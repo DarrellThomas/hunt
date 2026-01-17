@@ -4,6 +4,7 @@ Optimized agent classes with vectorized distance calculations.
 
 import numpy as np
 from brain import Brain
+from config import *  # Import all configuration parameters
 
 
 class Agent:
@@ -79,7 +80,7 @@ class Agent:
 
     def reproduce(self, mutation_rate=0.1):
         """
-        Create offspring with mutated brain.
+        Create offspring with mutated brain and traits.
 
         Args:
             mutation_rate: Amount of mutation to apply
@@ -87,13 +88,25 @@ class Agent:
         Returns:
             New agent (offspring)
         """
-        # Spawn near parent
-        offset = np.random.randn(2) * 20
-        child_x = (self.pos[0] + offset[0]) % self.world_width
-        child_y = (self.pos[1] + offset[1]) % self.world_height
+        # Spawn near parent with variable distance to prevent blobs
+        # Random distance: 20 to 150 pixels
+        spawn_distance = np.random.uniform(20, 150)
+        spawn_angle = np.random.uniform(0, 2 * np.pi)
+        offset_x = spawn_distance * np.cos(spawn_angle)
+        offset_y = spawn_distance * np.sin(spawn_angle)
+        child_x = (self.pos[0] + offset_x) % self.world_width
+        child_y = (self.pos[1] + offset_y) % self.world_height
 
-        # Create child with copied brain
-        child = self.__class__(child_x, child_y, self.world_width, self.world_height, brain=self.brain)
+        # Inherit and mutate swim_speed (if agent has it)
+        if hasattr(self, 'swim_speed'):
+            # Mutate swim speed slightly
+            child_swim_speed = max(0.1, self.swim_speed + np.random.randn() * mutation_rate * 2.0)
+        else:
+            child_swim_speed = None
+
+        # Create child with copied brain and mutated swim_speed
+        child = self.__class__(child_x, child_y, self.world_width, self.world_height,
+                              brain=self.brain, swim_speed=child_swim_speed)
 
         # Mutate child's brain
         child.brain.mutate(mutation_rate)
@@ -135,17 +148,23 @@ def vectorized_distances(pos, other_positions, world_width, world_height):
 class Prey(Agent):
     """Prey agents that try to survive."""
 
-    def __init__(self, x, y, world_width, world_height, brain=None):
+    def __init__(self, x, y, world_width, world_height, brain=None, swim_speed=None):
         # Prey observes: 5 nearest predators (x, y, vx, vy each) + 3 nearest prey = 5*4 + 3*4 = 32 inputs
         super().__init__(x, y, world_width, world_height, brain, input_size=32)
 
-        self.max_speed = 3.0
-        self.max_acceleration = 0.5
+        self.max_speed = PREY_MAX_SPEED
+        self.max_acceleration = PREY_MAX_ACCELERATION
+
+        # Evolvable swimming ability - resistance to current
+        if swim_speed is None:
+            self.swim_speed = max(0.1, PREY_SWIM_SPEED + np.random.randn() * 0.2)
+        else:
+            self.swim_speed = swim_speed
 
         # Add natural variation to lifespan and reproduction timing
         # Normal distribution prevents synchronized birth/death waves
-        self.max_lifespan = max(100, int(np.random.normal(500, 50)))  # Mean 500, std 50
-        self.reproduction_age = max(50, int(np.random.normal(200, 20)))  # Mean 200, std 20
+        self.max_lifespan = max(100, int(np.random.normal(PREY_MAX_LIFESPAN, PREY_LIFESPAN_VARIANCE)))
+        self.reproduction_age = max(50, int(np.random.normal(PREY_REPRODUCTION_AGE, PREY_REPRODUCTION_VARIANCE)))
         self.time_since_reproduction = 0
 
     def observe(self, predator_positions, predator_velocities, prey_positions, prey_velocities, my_index):
@@ -224,26 +243,32 @@ class Prey(Agent):
 class Predator(Agent):
     """Predator agents that must hunt to survive."""
 
-    def __init__(self, x, y, world_width, world_height, brain=None):
+    def __init__(self, x, y, world_width, world_height, brain=None, swim_speed=None):
         # Predator observes: 5 nearest prey (x, y, vx, vy each) + own hunger = 5*4 + 1 = 21 inputs
         super().__init__(x, y, world_width, world_height, brain, input_size=21)
 
-        self.max_speed = 2.5  # Slightly slower than prey
-        self.max_acceleration = 0.4
+        self.max_speed = PRED_MAX_SPEED
+        self.max_acceleration = PRED_MAX_ACCELERATION
+
+        # Evolvable swimming ability - resistance to current
+        if swim_speed is None:
+            self.swim_speed = max(0.1, PRED_SWIM_SPEED + np.random.randn() * 0.2)
+        else:
+            self.swim_speed = swim_speed
 
         # Add natural variation to lifespan and reproduction timing
         # Normal distribution prevents synchronized birth/death waves
-        self.max_lifespan = max(200, int(np.random.normal(800, 80)))  # Mean 800, std 80
-        self.reproduction_cooldown = max(50, int(np.random.normal(150, 15)))  # Mean 150, std 15
+        self.max_lifespan = max(200, int(np.random.normal(PRED_MAX_LIFESPAN, PRED_LIFESPAN_VARIANCE)))
+        self.reproduction_cooldown = max(50, int(np.random.normal(PRED_REPRODUCTION_COOLDOWN, PRED_REPRODUCTION_VARIANCE)))
 
-        self.energy = 150
-        self.max_energy = 150
-        self.energy_cost_per_step = 0.3
-        self.energy_gain_per_kill = 60
-        self.reproduction_threshold = 120
-        self.reproduction_cost = 40
+        self.energy = PRED_MAX_ENERGY
+        self.max_energy = PRED_MAX_ENERGY
+        self.energy_cost_per_step = PRED_ENERGY_COST
+        self.energy_gain_per_kill = PRED_ENERGY_GAIN
+        self.reproduction_threshold = PRED_REPRODUCTION_THRESHOLD
+        self.reproduction_cost = PRED_REPRODUCTION_COST
         self.time_since_reproduction = 0
-        self.catch_radius = 8.0  # Larger radius to help random movement succeed occasionally
+        self.catch_radius = CATCH_RADIUS
 
     def observe(self, prey_positions, prey_velocities):
         """

@@ -2,98 +2,83 @@
 
 A neuroevolution simulation where predators and prey both learn to survive through natural selection.
 
-## Overview
-
-This project implements a 2D ecosystem where:
-- **Prey** (green) learn to evade predators and survive long enough to reproduce
-- **Predators** (red) learn to hunt prey or starve to death
-- Both populations evolve through **neuroevolution** - successful agents reproduce and pass their neural network weights to offspring with mutations
-- No explicit rewards or training - just survival of the fittest
-
 ## Quick Start
 
+From the project root:
+
 ```bash
-python3 main.py
+# CPU version (recommended for < 1000 agents)
+python3 run.py
+
+# GPU version (recommended for 1000+ agents)
+python3 run_gpu.py
+
+# Overnight training
+./start_overnight.sh
 ```
 
-The Pygame window will open showing the live ecosystem. Watch as both populations co-evolve!
+Or run directly from src/:
 
-### Controls
-- **SPACE** - Pause/Resume simulation
-- **S** - Save statistics to `stats.npz`
+```bash
+cd src
+python3 main.py          # CPU version
+python3 main_gpu.py      # GPU version
+```
+
+## Project Structure
+
+```
+hunt/
+├── src/               # Source code
+│   ├── agent.py       # Prey and Predator classes
+│   ├── brain.py       # Neural network
+│   ├── config.py      # Configuration parameters
+│   ├── river.py       # River/island environment
+│   ├── world.py       # CPU simulation
+│   ├── simulation_gpu.py  # GPU simulation
+│   ├── main.py        # CPU visualizer
+│   ├── main_gpu.py    # GPU visualizer
+│   └── analyze_*.py   # Analysis scripts
+├── docs/              # Documentation
+│   ├── THESIS.md      # Design philosophy
+│   ├── ARCHITECTURE.md     # System architecture
+│   ├── TECHNICAL_DEBT.md   # Known issues
+│   └── ...
+├── results/           # Output files
+│   ├── *.npz          # Statistics data
+│   └── *.png          # Visualizations
+├── tests/             # Test files
+├── run.py             # Convenience wrapper (CPU)
+└── run_gpu.py         # Convenience wrapper (GPU)
+```
+
+See [docs/](docs/) for complete documentation.
+
+## Controls
+
+- **SPACE** - Pause/Resume
+- **S** - Save statistics
 - **ESC** - Quit
 
-## How It Works
+## Features
 
-### Agents
-Each agent (predator or prey) has:
-- A **neural network brain** (3 layers, 32 hidden units)
-- Sensory observations of nearby agents
-- Movement controlled by neural network output
+- Neural network brains evolve through natural selection
+- River/island environmental system
+- GPU acceleration for 10,000+ agents
+- Automatic data collection and analysis
+- Individual trait evolution (swim speed, lifespans)
 
-### Evolution
-- Agents that survive longer accumulate higher fitness
-- Successful agents reproduce, creating offspring with mutated brains
-- Failed strategies die out
-- Over generations, effective hunting and evasion behaviors emerge
+## Requirements
 
-### Survival Mechanics
+- Python 3.8+
+- NumPy, Pygame, Matplotlib
+- PyTorch + CUDA (for GPU version)
 
-**Prey:**
-- Feed on grass (infinite food)
-- Die from: being caught, old age (500 timesteps)
-- Reproduce every 200 timesteps if alive
+## Documentation
 
-**Predators:**
-- Must catch prey to restore energy
-- Die from: starvation (energy reaches 0), old age (800 timesteps)
-- Reproduce when energy > 120 (cooldown: 150 timesteps)
+- [THESIS.md](docs/THESIS.md) - Design philosophy
+- [ARCHITECTURE.md](docs/ARCHITECTURE.md) - Complete system architecture
+- [QUICKSTART.md](docs/QUICKSTART.md) - Detailed setup guide
+- [RESULTS.md](docs/RESULTS.md) - Experimental results
 
-## Architecture
-
-- `brain.py` - Neural network implementation
-- `agent.py` - Prey and Predator classes
-- `world.py` - Ecosystem simulation engine
-- `main.py` - Pygame visualization and training loop
-- `THESIS.md` - Design document and approach
-
-## Expected Behaviors
-
-As the simulation runs, you should observe:
-- **Prey**: Flocking, evasive maneuvers, maintaining distance from predators
-- **Predators**: Chase behavior, improved pursuit strategies
-- **Population dynamics**: Boom-bust cycles or equilibrium
-
-## Parameters
-
-Key parameters (in `agent.py`):
-- Mutation rate: 0.1 (10% weight change)
-- Catch radius: 8.0 units
-- Predator speed: 2.5 (slightly slower than prey at 3.0)
-- Energy mechanics: 150 max, 0.3 cost per step, 60 gain per kill
-
-Adjust these to experiment with different ecosystem dynamics!
-
-## Statistics
-
-Press 'S' to save statistics during the run. Stats include:
-- Population counts over time
-- Average age and fitness for each population
-
-Load with NumPy:
-```python
-import numpy as np
-stats = np.load('stats.npz')
-print(stats['prey_count'])
-```
-
-## Testing
-
-Run headless test without visualization:
-```bash
-python3 test_simulation.py
-```
-
-## Credits
-
-Built with NumPy, Pygame, and emergent complexity.
+Built with emergent complexity and survival of the fittest.

@@ -44,10 +44,53 @@ class Visualizer:
         self.birth_effects = []
         self.death_effects = []
 
+    def draw_river(self):
+        """Draw the river."""
+        if not self.world.river.enabled:
+            return
+
+        river_data = self.world.river.get_render_data()
+        if river_data is None:
+            return
+
+        # Colors
+        river_color = (30, 100, 200)  # Blue for water
+        island_color = (139, 115, 85)  # Brown/tan for land sanctuary
+
+        path_x = river_data['path_x']
+        path_y = river_data['path_y']
+        width = river_data['width']
+
+        # Draw river as a series of lines along the path
+        for i in range(len(path_x) - 1):
+            x1, y1 = int(path_x[i]), int(path_y[i])
+            x2, y2 = int(path_x[i + 1]), int(path_y[i + 1])
+
+            # Check if in split region
+            t = i / len(path_x)
+            if river_data['split'] and river_data['split_start'] <= t <= river_data['split_end']:
+                # Draw split channels
+                offset = river_data['island_width'] / 2
+                # Top channel
+                pygame.draw.line(self.screen, river_color, (x1, int(y1 - offset)), (x2, int(y2 - offset)), int(width / 2))
+                # Bottom channel
+                pygame.draw.line(self.screen, river_color, (x1, int(y1 + offset)), (x2, int(y2 + offset)), int(width / 2))
+                # Island in middle - LAND SANCTUARY (no flow)
+                island_radius = int(river_data['island_width'] / 2)
+                pygame.draw.circle(self.screen, island_color, (x1, y1), island_radius)
+                # Add some detail to make it look like land
+                pygame.draw.circle(self.screen, (160, 130, 95), (x1, y1), island_radius, 3)  # Lighter border
+            else:
+                # Draw normal river
+                pygame.draw.line(self.screen, river_color, (x1, y1), (x2, y2), int(width))
+
     def draw(self):
         """Draw the current state of the world."""
         # Clear screen
         self.screen.fill(self.bg_color)
+
+        # Draw river first (so agents appear on top)
+        self.draw_river()
 
         # Draw prey
         for prey in self.world.prey:
