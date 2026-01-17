@@ -1,5 +1,6 @@
 """
-Optimized world simulation with vectorized operations.
+World simulation that manages the ecosystem.
+Handles physics, collisions, reproduction, and death.
 """
 
 import numpy as np
@@ -48,27 +49,20 @@ class World:
 
     def step(self, mutation_rate=0.1):
         """
-        Simulate one timestep of the ecosystem with vectorized operations.
+        Simulate one timestep of the ecosystem.
 
         Args:
             mutation_rate: Mutation rate for offspring
         """
         self.timestep += 1
 
-        # Pre-compute position and velocity arrays (vectorized!)
-        prey_positions = np.array([p.pos for p in self.prey]) if self.prey else np.array([]).reshape(0, 2)
-        prey_velocities = np.array([p.vel for p in self.prey]) if self.prey else np.array([]).reshape(0, 2)
-        predator_positions = np.array([p.pos for p in self.predators]) if self.predators else np.array([]).reshape(0, 2)
-        predator_velocities = np.array([p.vel for p in self.predators]) if self.predators else np.array([]).reshape(0, 2)
-
-        # 1. Agents observe and act (using pre-computed arrays)
-        for i, prey in enumerate(self.prey):
-            observation = prey.observe(predator_positions, predator_velocities,
-                                      prey_positions, prey_velocities, i)
+        # 1. Agents observe and act
+        for prey in self.prey:
+            observation = prey.observe(self)
             prey.act(observation)
 
         for predator in self.predators:
-            observation = predator.observe(prey_positions, prey_velocities)
+            observation = predator.observe(self)
             predator.act(observation)
 
         # 2. Update physics
@@ -81,39 +75,16 @@ class World:
             predator.update_energy()
             predator.time_since_reproduction += 1
 
-        # 3. Check collisions (vectorized!)
+        # 3. Check collisions (predators catching prey)
         prey_to_remove = set()
-        if len(self.predators) > 0 and len(self.prey) > 0:
-            # Update positions after physics
-            prey_positions = np.array([p.pos for p in self.prey])
-            predator_positions = np.array([p.pos for p in self.predators])
-
-            for pred_idx, predator in enumerate(self.predators):
-                if len(prey_to_remove) >= len(self.prey):
-                    break
-
-                # Vectorized distance calculation for this predator to all remaining prey
-                dx = prey_positions[:, 0] - predator.pos[0]
-                dy = prey_positions[:, 1] - predator.pos[1]
-
-                # Toroidal wrapping
-                dx = np.where(np.abs(dx) > self.width / 2, dx - np.sign(dx) * self.width, dx)
-                dy = np.where(np.abs(dy) > self.height / 2, dy - np.sign(dy) * self.height, dy)
-
-                distances = np.sqrt(dx**2 + dy**2)
-
-                # Find prey within catch radius
-                caught_mask = distances < predator.catch_radius
-                caught_indices = np.where(caught_mask)[0]
-
-                # Remove already-caught prey from consideration
-                caught_indices = [idx for idx in caught_indices if idx not in prey_to_remove]
-
-                if len(caught_indices) > 0:
-                    # Catch the nearest one
-                    nearest_idx = caught_indices[np.argmin(distances[caught_indices])]
-                    predator.eat()
-                    prey_to_remove.add(nearest_idx)
+        for predator in self.predators:
+            for i, prey in enumerate(self.prey):
+                if i not in prey_to_remove:
+                    if predator.distance_to(prey) < predator.catch_radius:
+                        # Predator catches prey
+                        predator.eat()
+                        prey_to_remove.add(i)
+                        break  # Each predator can only catch one prey per timestep
 
         # Remove caught prey
         self.prey = [p for i, p in enumerate(self.prey) if i not in prey_to_remove]

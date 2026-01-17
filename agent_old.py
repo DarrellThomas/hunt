@@ -1,5 +1,6 @@
 """
-Optimized agent classes with vectorized distance calculations.
+Agent classes for predators and prey.
+Each agent has a neural network brain and evolves through survival.
 """
 
 import numpy as np
@@ -77,6 +78,37 @@ class Agent:
         # Age the agent
         self.age += 1
 
+    def distance_to(self, other):
+        """
+        Calculate distance to another agent, accounting for toroidal wrap.
+        """
+        dx = abs(self.pos[0] - other.pos[0])
+        dy = abs(self.pos[1] - other.pos[1])
+
+        # Account for wrapping
+        if dx > self.world_width / 2:
+            dx = self.world_width - dx
+        if dy > self.world_height / 2:
+            dy = self.world_height - dy
+
+        return np.sqrt(dx**2 + dy**2)
+
+    def vector_to(self, other):
+        """
+        Calculate vector to another agent, accounting for toroidal wrap.
+        Returns the shortest vector considering wrapping.
+        """
+        dx = other.pos[0] - self.pos[0]
+        dy = other.pos[1] - self.pos[1]
+
+        # Account for wrapping - take shortest path
+        if abs(dx) > self.world_width / 2:
+            dx = dx - np.sign(dx) * self.world_width
+        if abs(dy) > self.world_height / 2:
+            dy = dy - np.sign(dy) * self.world_height
+
+        return np.array([dx, dy])
+
     def reproduce(self, mutation_rate=0.1):
         """
         Create offspring with mutated brain.
@@ -101,37 +133,6 @@ class Agent:
         return child
 
 
-def vectorized_distances(pos, other_positions, world_width, world_height):
-    """
-    Vectorized distance calculation with toroidal wrapping.
-
-    Args:
-        pos: Single position [x, y]
-        other_positions: Array of positions (N, 2)
-        world_width, world_height: World dimensions
-
-    Returns:
-        distances: Array of distances (N,)
-        vectors: Array of direction vectors (N, 2)
-    """
-    if len(other_positions) == 0:
-        return np.array([]), np.array([]).reshape(0, 2)
-
-    # Calculate raw differences
-    dx = other_positions[:, 0] - pos[0]
-    dy = other_positions[:, 1] - pos[1]
-
-    # Apply toroidal wrapping - take shortest path
-    dx = np.where(np.abs(dx) > world_width / 2, dx - np.sign(dx) * world_width, dx)
-    dy = np.where(np.abs(dy) > world_height / 2, dy - np.sign(dy) * world_height, dy)
-
-    # Calculate distances
-    distances = np.sqrt(dx**2 + dy**2)
-    vectors = np.column_stack([dx, dy])
-
-    return distances, vectors
-
-
 class Prey(Agent):
     """Prey agents that try to survive."""
 
@@ -145,16 +146,9 @@ class Prey(Agent):
         self.reproduction_age = 200
         self.time_since_reproduction = 0
 
-    def observe(self, predator_positions, predator_velocities, prey_positions, prey_velocities, my_index):
+    def observe(self, world):
         """
-        Observe nearby predators and prey using vectorized operations.
-
-        Args:
-            predator_positions: Array of predator positions (N, 2)
-            predator_velocities: Array of predator velocities (N, 2)
-            prey_positions: Array of prey positions (M, 2)
-            prey_velocities: Array of prey velocities (M, 2)
-            my_index: This prey's index in the arrays
+        Observe nearby predators and prey.
 
         Returns:
             Observation vector (numpy array)
@@ -162,46 +156,44 @@ class Prey(Agent):
         observation = []
 
         # Find 5 nearest predators
-        if len(predator_positions) > 0:
-            distances, vectors = vectorized_distances(
-                self.pos, predator_positions, self.world_width, self.world_height
-            )
+        predators = world.predators
+        if len(predators) > 0:
+            # Calculate distances to all predators
+            distances = [self.distance_to(p) for p in predators]
+            # Sort by distance and take nearest 5
             nearest_indices = np.argsort(distances)[:5]
 
             for i in range(5):
                 if i < len(nearest_indices):
-                    idx = nearest_indices[i]
-                    vec_norm = vectors[idx] / np.array([self.world_width, self.world_height])
-                    vel_norm = predator_velocities[idx] / self.max_speed
+                    predator = predators[nearest_indices[i]]
+                    vec = self.vector_to(predator)
+                    # Normalize by world size
+                    vec_norm = vec / np.array([self.world_width, self.world_height])
+                    vel_norm = predator.vel / predator.max_speed
                     observation.extend([vec_norm[0], vec_norm[1], vel_norm[0], vel_norm[1]])
                 else:
+                    # No predator, pad with zeros
                     observation.extend([0, 0, 0, 0])
         else:
-            observation.extend([0] * 20)
+            observation.extend([0] * 20)  # 5 predators * 4 values
 
-        # Find 3 nearest other prey (excluding self)
-        if len(prey_positions) > 1:
-            # Remove self from consideration
-            mask = np.ones(len(prey_positions), dtype=bool)
-            mask[my_index] = False
-            other_positions = prey_positions[mask]
-            other_velocities = prey_velocities[mask]
-
-            distances, vectors = vectorized_distances(
-                self.pos, other_positions, self.world_width, self.world_height
-            )
+        # Find 3 nearest other prey (for flocking)
+        other_prey = [p for p in world.prey if p is not self]
+        if len(other_prey) > 0:
+            distances = [self.distance_to(p) for p in other_prey]
             nearest_indices = np.argsort(distances)[:3]
 
             for i in range(3):
                 if i < len(nearest_indices):
-                    idx = nearest_indices[i]
-                    vec_norm = vectors[idx] / np.array([self.world_width, self.world_height])
-                    vel_norm = other_velocities[idx] / self.max_speed
+                    prey = other_prey[nearest_indices[i]]
+                    vec = self.vector_to(prey)
+                    vec_norm = vec / np.array([self.world_width, self.world_height])
+                    vel_norm = prey.vel / prey.max_speed
                     observation.extend([vec_norm[0], vec_norm[1], vel_norm[0], vel_norm[1]])
                 else:
                     observation.extend([0, 0, 0, 0])
         else:
-            observation.extend([0] * 12)
+            observation.extend([0] * 12)  # 3 prey * 4 values
 
         return np.array(observation, dtype=np.float32)
 
@@ -238,13 +230,9 @@ class Predator(Agent):
         self.time_since_reproduction = 0
         self.catch_radius = 8.0  # Larger radius to help random movement succeed occasionally
 
-    def observe(self, prey_positions, prey_velocities):
+    def observe(self, world):
         """
-        Observe nearby prey and own hunger using vectorized operations.
-
-        Args:
-            prey_positions: Array of prey positions (N, 2)
-            prey_velocities: Array of prey velocities (N, 2)
+        Observe nearby prey and own hunger.
 
         Returns:
             Observation vector (numpy array)
@@ -252,22 +240,22 @@ class Predator(Agent):
         observation = []
 
         # Find 5 nearest prey
-        if len(prey_positions) > 0:
-            distances, vectors = vectorized_distances(
-                self.pos, prey_positions, self.world_width, self.world_height
-            )
+        prey_list = world.prey
+        if len(prey_list) > 0:
+            distances = [self.distance_to(p) for p in prey_list]
             nearest_indices = np.argsort(distances)[:5]
 
             for i in range(5):
                 if i < len(nearest_indices):
-                    idx = nearest_indices[i]
-                    vec_norm = vectors[idx] / np.array([self.world_width, self.world_height])
-                    vel_norm = prey_velocities[idx] / self.max_speed
+                    prey = prey_list[nearest_indices[i]]
+                    vec = self.vector_to(prey)
+                    vec_norm = vec / np.array([self.world_width, self.world_height])
+                    vel_norm = prey.vel / prey.max_speed
                     observation.extend([vec_norm[0], vec_norm[1], vel_norm[0], vel_norm[1]])
                 else:
                     observation.extend([0, 0, 0, 0])
         else:
-            observation.extend([0] * 20)
+            observation.extend([0] * 20)  # 5 prey * 4 values
 
         # Add hunger level (normalized)
         hunger = 1.0 - (self.energy / self.max_energy)
