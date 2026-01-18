@@ -9,47 +9,48 @@ reproduce more, and can live on less food.
 # ============================================================================
 # PREY PARAMETERS
 # ============================================================================
-PREY_MAX_SPEED = 3.0              # Initial maximum speed
-PREY_MAX_ACCELERATION = 0.5       # Initial acceleration capability
-PREY_SWIM_SPEED = 2.0             # Initial swimming ability (resistance to current, evolvable)
-PREY_MAX_LIFESPAN = 500           # Initial maximum age (mean)
-PREY_LIFESPAN_VARIANCE = 50       # Variance in lifespan
-PREY_REPRODUCTION_AGE = 200       # Initial age when reproduction possible (mean)
-PREY_REPRODUCTION_VARIANCE = 20   # Variance in reproduction age
+PREY_MAX_SPEED = 5.0              # Initial maximum speed
+PREY_MAX_ACCELERATION = 0.7       # Initial acceleration capability
+PREY_SWIM_SPEED = 0.5             # Initial swimming ability (resistance to current, evolvable)
+PREY_MAX_LIFESPAN = 800           # Initial maximum age (mean)
+PREY_LIFESPAN_VARIANCE = 800       # Variance in lifespan
+PREY_REPRODUCTION_AGE = 100       # Initial age when reproduction possible (mean)
+PREY_REPRODUCTION_VARIANCE = 100   # Variance in reproduction age
 
 # ============================================================================
 # PREDATOR PARAMETERS
 # ============================================================================
-PRED_MAX_SPEED = 2.5              # Initial maximum speed (slightly slower than prey)
+PRED_MAX_SPEED = 2.2              # Initial maximum speed (slightly slower than prey)
 PRED_MAX_ACCELERATION = 0.4       # Initial acceleration capability
-PRED_SWIM_SPEED = 1.5             # Initial swimming ability (resistance to current, evolvable)
+PRED_SWIM_SPEED = 0.2             # Initial swimming ability (resistance to current, evolvable)
 PRED_MAX_LIFESPAN = 800           # Initial maximum age (mean)
-PRED_LIFESPAN_VARIANCE = 80       # Variance in lifespan
-PRED_MAX_ENERGY = 150             # Initial maximum energy/health
+PRED_LIFESPAN_VARIANCE = 800       # Variance in lifespan
+PRED_MAX_ENERGY = 100             # Initial maximum energy/health
 PRED_ENERGY_COST = 0.3            # Initial energy cost per step (hunger rate)
 PRED_ENERGY_GAIN = 60             # Initial energy gained per kill
-PRED_REPRODUCTION_THRESHOLD = 120 # Initial energy needed to reproduce
-PRED_REPRODUCTION_COST = 40       # Initial energy cost of reproduction
-PRED_REPRODUCTION_COOLDOWN = 150  # Initial time between reproductions (mean)
-PRED_REPRODUCTION_VARIANCE = 15   # Variance in reproduction cooldown
+PRED_REPRODUCTION_THRESHOLD = 50 # Initial energy needed to reproduce
+PRED_REPRODUCTION_COST = 5       # Initial energy cost of reproduction
+PRED_REPRODUCTION_COOLDOWN = 300  # Initial time between reproductions (mean)
+PRED_REPRODUCTION_VARIANCE = 100   # Variance in reproduction cooldown
 
 # ============================================================================
 # WORLD PARAMETERS
 # ============================================================================
 CATCH_RADIUS = 8.0                # Distance at which predator catches prey
-FRICTION = 0.1                    # Velocity damping per timestep (0.0-1.0, higher = more friction)
+FRICTION = 0.15                    # Velocity damping per timestep (0.0-1.0, higher = more friction)
+EXTINCTION_THRESHOLD = 0          # Population below this is considered extinct (0 = complete extinction only)
 
 # ============================================================================
 # RIVER PARAMETERS
 # ============================================================================
 RIVER_ENABLED = True              # Enable/disable river feature
-RIVER_WIDTH = 500                 # Width of the river in pixels
-RIVER_FLOW_SPEED = 1.25            # Speed of water current (added to agent velocity)
+RIVER_WIDTH = 900                 # Width of the river in pixels
+RIVER_FLOW_SPEED = .5            # Speed of water current (added to agent velocity)
 RIVER_CURVINESS = 0.0            # How curvy the river is (0=straight, 1=very curvy)
 RIVER_SPLIT = True                # Whether river splits to create an island
-RIVER_SPLIT_START = 0.3           # Where split starts (0-1 along river path)
-RIVER_SPLIT_END = 0.7             # Where split ends (0-1 along river path)
-RIVER_ISLAND_WIDTH = 200          # Width of island between split channels
+RIVER_SPLIT_START = 0.2           # Where split starts (0-1 along river path)
+RIVER_SPLIT_END = 0.8             # Where split ends (0-1 along river path)
+RIVER_ISLAND_WIDTH = 300          # Width of island between split channels
 
 # ============================================================================
 # ISLAND BEHAVIOR MODIFIERS
@@ -58,7 +59,7 @@ RIVER_ISLAND_WIDTH = 200          # Width of island between split channels
 
 # Prey modifiers
 ISLAND_PREY_SPEED_MULTIPLIER = 2.0          # Speed modifier (1.0 = normal, 1.5 = 50% faster, 0.5 = 50% slower)
-ISLAND_PREY_REPRODUCTION_MULTIPLIER = .8   # Reproduction wait time modifier (1.0 = normal, 0.5 = reproduce 2x faster, 2.0 = reproduce 2x slower)
+ISLAND_PREY_REPRODUCTION_MULTIPLIER = .7   # Reproduction wait time modifier (1.0 = normal, 0.5 = reproduce 2x faster, 2.0 = reproduce 2x slower)
 
 # Predator modifiers
 ISLAND_PRED_SPEED_MULTIPLIER = 0.2          # Speed modifier (1.0 = normal, 1.5 = 50% faster, 0.5 = 50% slower)

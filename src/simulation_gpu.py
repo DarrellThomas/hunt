@@ -157,6 +157,10 @@ class GPUEcosystem:
             'pred_in_river_pct': [],
         }
 
+        # Extinction flag for stopping simulation
+        self.extinct = False
+        self.extinction_message = ""
+
         print(f"GPU Ecosystem initialized on {device}")
         print(f"World: {width}x{height}")
         print(f"Prey: {num_prey}, Predators: {num_predators}")
@@ -672,11 +676,30 @@ class GPUEcosystem:
             self.pred_energy[parents] -= self.pred_repro_cost
             self.pred_repro_timer[parents] = 0
 
-        # Unified extinction prevention
-        self._handle_extinction_prevention()
+        # Extinction prevention disabled - allow natural extinction
+        # (Experiment ends when either species goes extinct)
+        # self._handle_extinction_prevention()
 
         # Record statistics for evolution analysis
         self.record_stats()
+
+        # Check for extinction - stop simulation if either species below threshold
+        prey_count = self.prey_alive.sum().item()
+        pred_count = self.pred_alive.sum().item()
+
+        if prey_count <= EXTINCTION_THRESHOLD:
+            print(f"\n💀 PREY EXTINCTION at timestep {self.timestep}!")
+            print(f"   Population fell to {prey_count} (threshold: {EXTINCTION_THRESHOLD})")
+            print("   Experiment over - predators won!")
+            self.extinct = True
+            self.extinction_message = f"Prey extinct at timestep {self.timestep}"
+
+        if pred_count <= EXTINCTION_THRESHOLD:
+            print(f"\n💀 PREDATOR EXTINCTION at timestep {self.timestep}!")
+            print(f"   Population fell to {pred_count} (threshold: {EXTINCTION_THRESHOLD})")
+            print("   Experiment over - prey won!")
+            self.extinct = True
+            self.extinction_message = f"Predators extinct at timestep {self.timestep}"
 
         # === REMOVED: Global mutation code (incorrect neuroevolution) ===
         # Mutation now happens ONLY at reproduction with parent weight inheritance

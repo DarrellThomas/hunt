@@ -84,6 +84,15 @@ def main():
             if not renderer.is_paused():
                 ecosystem.step()
 
+                # Check for extinction - stop if experiment is over
+                if ecosystem.extinct:
+                    ecosystem.save_stats()  # Final save
+                    print("\n" + "="*60)
+                    print("EXTINCTION DETECTED - Stopping simulation")
+                    print("="*60)
+                    running = False
+                    break
+
                 # Auto-save periodically
                 if ecosystem.timestep % autosave_interval == 0 and ecosystem.timestep > 0:
                     ecosystem.save_stats()

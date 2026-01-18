@@ -202,8 +202,18 @@ class World:
         self.prey.extend(new_prey)
         self.predators.extend(new_predators)
 
-        # 7. Unified extinction prevention
-        self._handle_extinction_prevention()
+        # 7. Extinction prevention disabled - allow natural extinction
+        # self._handle_extinction_prevention()
+
+        # Check for extinction
+        if len(self.prey) <= EXTINCTION_THRESHOLD:
+            print(f"\n💀 PREY EXTINCTION at timestep {self.timestep}!")
+            print(f"   Population: {len(self.prey)} (threshold: {EXTINCTION_THRESHOLD})")
+            print("   Experiment over - predators won!")
+        if len(self.predators) <= EXTINCTION_THRESHOLD:
+            print(f"\n💀 PREDATOR EXTINCTION at timestep {self.timestep}!")
+            print(f"   Population: {len(self.predators)} (threshold: {EXTINCTION_THRESHOLD})")
+            print("   Experiment over - prey won!")
 
         # 9. Record statistics
         self.record_stats()
