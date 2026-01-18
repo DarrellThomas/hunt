@@ -68,11 +68,11 @@ class GPUEcosystem:
         self.device = device
         self.timestep = 0
 
-        # Set maximum capacities (allow 3x growth by default)
+        # Set maximum capacities from config (default from POPULATION_CAPACITY_MULTIPLIER)
         if max_prey_capacity is None:
-            max_prey_capacity = num_prey * 3
+            max_prey_capacity = num_prey * POPULATION_CAPACITY_MULTIPLIER
         if max_pred_capacity is None:
-            max_pred_capacity = num_predators * 3
+            max_pred_capacity = num_predators * POPULATION_CAPACITY_MULTIPLIER
 
         self.max_prey_capacity = max_prey_capacity
         self.max_pred_capacity = max_pred_capacity
