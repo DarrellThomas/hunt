@@ -41,6 +41,14 @@ FRICTION = 0.15                    # Velocity damping per timestep (0.0-1.0, hig
 EXTINCTION_THRESHOLD = 0          # Population below this is considered extinct (0 = complete extinction only)
 
 # ============================================================================
+# POPULATION PARAMETERS
+# ============================================================================
+# Base population values (scaled proportionally to screen area in GPU mode)
+INITIAL_PREY_POPULATION = 8000    # Base number of prey at start
+INITIAL_PREDATOR_POPULATION = 2000 # Base number of predators at start
+POPULATION_CAPACITY_MULTIPLIER = 3 # Maximum capacity = initial × this (allows population growth)
+
+# ============================================================================
 # RIVER PARAMETERS
 # ============================================================================
 RIVER_ENABLED = True              # Enable/disable river feature

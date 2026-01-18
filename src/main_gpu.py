@@ -11,6 +11,7 @@ warnings.filterwarnings('ignore', message='.*pkg_resources.*', category=UserWarn
 import numpy as np
 from simulation_gpu import GPUEcosystem
 from renderer import Renderer, RenderConfig, create_state_from_gpu_ecosystem
+from config import INITIAL_PREY_POPULATION, INITIAL_PREDATOR_POPULATION
 
 
 def main():
@@ -30,21 +31,22 @@ def main():
     sim_height = screen_height - stats_panel_height
 
     # Calculate agent counts proportional to screen area
-    # Base: 3200x2400 = 7,680,000 pixels with 10,000 agents
-    base_pixels = 3200 * 2400
+    # Use config values as baseline, scale to screen size
+    base_pixels = 3200 * 2400  # Reference screen size
     sim_pixels = sim_width * sim_height
     scale_factor = sim_pixels / base_pixels
 
-    num_prey = int(8000 * scale_factor)
-    num_predators = int(2000 * scale_factor)
+    # Scale initial populations from config based on screen area
+    num_prey = int(INITIAL_PREY_POPULATION * scale_factor)
+    num_predators = int(INITIAL_PREDATOR_POPULATION * scale_factor)
 
     print(f"Detected monitor: {screen_width}x{screen_height}")
     print(f"Simulation area: {sim_width}x{sim_height} (reserving {stats_panel_height}px for stats)")
     print(f"Creating simulation with {num_prey:,} prey, {num_predators:,} predators")
 
     # Create GPU simulation at native resolution minus stats panel
-    # Note: Automatically allocates 3x capacity for population growth
-    # (e.g., 8240 initial prey → 24720 max capacity)
+    # Note: Capacity is POPULATION_CAPACITY_MULTIPLIER × initial population (default 3x)
+    # This allows populations to grow/shrink naturally beyond starting values
     ecosystem = GPUEcosystem(
         width=sim_width,
         height=sim_height,

@@ -11,13 +11,17 @@ warnings.filterwarnings('ignore', message='.*pkg_resources.*', category=UserWarn
 import numpy as np
 from world import World
 from renderer import Renderer, RenderConfig, create_state_from_cpu_world
+from config import INITIAL_PREY_POPULATION, INITIAL_PREDATOR_POPULATION
 
 
 def main():
     """Main entry point for CPU simulation with visualization."""
     # Create world
-    # 4x larger (2x width, 2x height) - matching original dimensions
-    world = World(width=1600, height=1200, initial_prey=200, initial_predators=40)
+    # CPU is slower, so use smaller population (2.5% of config values)
+    initial_prey = int(INITIAL_PREY_POPULATION * 0.025)  # 8000 * 0.025 = 200
+    initial_predators = int(INITIAL_PREDATOR_POPULATION * 0.025)  # 2000 * 0.025 = 50
+
+    world = World(width=1600, height=1200, initial_prey=initial_prey, initial_predators=initial_predators)
 
     # Create unified renderer
     render_config = RenderConfig(
