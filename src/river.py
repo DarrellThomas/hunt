@@ -222,6 +222,167 @@ class River:
         else:
             return None
 
+    def get_river_polygons(self):
+        """
+        Generate polygons for smooth river rendering.
+
+        Returns:
+            dict with keys:
+                'river_polygon': List of (x,y) points forming river outline
+                'island_polygon': List of (x,y) points forming island outline (or None)
+        """
+        if not self.enabled:
+            return None
+
+        # Calculate perpendicular offsets at each path point
+        river_left_bank = []
+        river_right_bank = []
+
+        for i in range(len(self.path_x)):
+            # Get tangent direction at this point
+            if i == 0:
+                dx = self.path_x[1] - self.path_x[0]
+                dy = self.path_y[1] - self.path_y[0]
+            elif i == len(self.path_x) - 1:
+                dx = self.path_x[-1] - self.path_x[-2]
+                dy = self.path_y[-1] - self.path_y[-2]
+            else:
+                # Average of forward and backward tangents for smoothness
+                dx = (self.path_x[i+1] - self.path_x[i-1]) / 2
+                dy = (self.path_y[i+1] - self.path_y[i-1]) / 2
+
+            # Normalize
+            length = np.sqrt(dx**2 + dy**2)
+            if length > 0:
+                dx, dy = dx/length, dy/length
+
+            # Perpendicular vector (rotate 90 degrees)
+            perp_x, perp_y = -dy, dx
+
+            # Calculate bank positions with smooth transitions
+            t = i / len(self.path_x)
+
+            # Determine if we're in or near split region
+            if self.split:
+                # Smooth transition zones
+                transition_width = 0.05  # 5% of path for smooth transition
+
+                if t < self.split_start - transition_width:
+                    # Before split - normal river
+                    split_factor = 0.0
+                elif t < self.split_start:
+                    # Transition into split
+                    split_factor = (t - (self.split_start - transition_width)) / transition_width
+                elif t <= self.split_end:
+                    # Full split region
+                    split_factor = 1.0
+                elif t < self.split_end + transition_width:
+                    # Transition out of split
+                    split_factor = 1.0 - (t - self.split_end) / transition_width
+                else:
+                    # After split - normal river
+                    split_factor = 0.0
+
+                # Interpolate between normal and split widths
+                normal_half_width = self.river_width / 2
+                split_half_width = normal_half_width + self.island_width / 2
+
+                effective_half_width = normal_half_width + split_factor * (split_half_width - normal_half_width)
+            else:
+                effective_half_width = self.river_width / 2
+
+            # Calculate bank positions
+            river_left_bank.append((
+                self.path_x[i] + perp_x * effective_half_width,
+                self.path_y[i] + perp_y * effective_half_width
+            ))
+            river_right_bank.append((
+                self.path_x[i] - perp_x * effective_half_width,
+                self.path_y[i] - perp_y * effective_half_width
+            ))
+
+        # Create closed polygon: left bank forward, right bank backward
+        river_polygon = river_left_bank + river_right_bank[::-1]
+
+        # Generate island polygon if split enabled
+        island_polygon = None
+        if self.split:
+            island_polygon = self._generate_island_polygon()
+
+        return {
+            'river_polygon': river_polygon,
+            'island_polygon': island_polygon
+        }
+
+    def _generate_island_polygon(self):
+        """Generate smooth island outline as a single polygon with tapered ends."""
+        island_points = []
+
+        # Find indices for split region
+        start_idx = int(self.split_start * len(self.path_x))
+        end_idx = int(self.split_end * len(self.path_x))
+
+        # Ensure we have enough points
+        if end_idx <= start_idx:
+            return None
+
+        # Generate points along top edge of island (left to right)
+        for i in range(start_idx, end_idx + 1):
+            # Get perpendicular direction
+            if i == start_idx:
+                dx = self.path_x[i+1] - self.path_x[i]
+                dy = self.path_y[i+1] - self.path_y[i]
+            elif i == end_idx or i >= len(self.path_x) - 1:
+                dx = self.path_x[min(i, len(self.path_x)-1)] - self.path_x[min(i-1, len(self.path_x)-2)]
+                dy = self.path_y[min(i, len(self.path_y)-1)] - self.path_y[min(i-1, len(self.path_y)-2)]
+            else:
+                dx = (self.path_x[i+1] - self.path_x[i-1]) / 2
+                dy = (self.path_y[i+1] - self.path_y[i-1]) / 2
+
+            length = np.sqrt(dx**2 + dy**2)
+            if length > 0:
+                dx, dy = dx/length, dy/length
+            perp_x, perp_y = -dy, dx
+
+            # Taper island at ends for smooth transition
+            t_local = (i - start_idx) / max(1, (end_idx - start_idx))  # 0 to 1 within island
+            taper = np.sin(t_local * np.pi)  # 0 at ends, 1 in middle
+
+            half_island = (self.island_width / 2) * taper
+
+            island_points.append((
+                self.path_x[i] + perp_x * half_island,
+                self.path_y[i] + perp_y * half_island
+            ))
+
+        # Generate points along bottom edge (right to left)
+        for i in range(end_idx, start_idx - 1, -1):
+            if i == start_idx:
+                dx = self.path_x[i+1] - self.path_x[i]
+                dy = self.path_y[i+1] - self.path_y[i]
+            elif i == end_idx or i >= len(self.path_x) - 1:
+                dx = self.path_x[min(i, len(self.path_x)-1)] - self.path_x[min(i-1, len(self.path_x)-2)]
+                dy = self.path_y[min(i, len(self.path_y)-1)] - self.path_y[min(i-1, len(self.path_y)-2)]
+            else:
+                dx = (self.path_x[i+1] - self.path_x[i-1]) / 2
+                dy = (self.path_y[i+1] - self.path_y[i-1]) / 2
+
+            length = np.sqrt(dx**2 + dy**2)
+            if length > 0:
+                dx, dy = dx/length, dy/length
+            perp_x, perp_y = -dy, dx
+
+            t_local = (i - start_idx) / max(1, (end_idx - start_idx))
+            taper = np.sin(t_local * np.pi)
+            half_island = (self.island_width / 2) * taper
+
+            island_points.append((
+                self.path_x[i] - perp_x * half_island,
+                self.path_y[i] - perp_y * half_island
+            ))
+
+        return island_points
+
     def get_render_data(self):
         """
         Get data for rendering the river.

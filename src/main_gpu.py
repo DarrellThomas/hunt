@@ -60,44 +60,38 @@ class GPUVisualizer:
         print(f"Auto-save: Every 1000 steps to stats_autosave.npz")
 
     def draw_river(self):
-        """Draw the river."""
+        """Draw the river using smooth polygon rendering."""
         if not self.ecosystem.river.enabled:
             return
 
-        river_data = self.ecosystem.river.get_render_data()
-        if river_data is None:
+        # Get or cache polygon data (only compute once, not every frame)
+        if not hasattr(self, '_river_polygons') or self._river_polygons is None:
+            self._river_polygons = self.ecosystem.river.get_river_polygons()
+
+        if self._river_polygons is None:
             return
 
-        # Colors
-        river_color = (30, 100, 200)  # Blue for water
-        island_color = (139, 115, 85)  # Brown/tan for land sanctuary
+        polygons = self._river_polygons
 
-        path_x = river_data['path_x']
-        path_y = river_data['path_y']
-        width = river_data['width']
+        # More natural, professional colors
+        river_color = (65, 105, 175)  # Steel blue - more natural than pure blue
+        river_edge_color = (45, 85, 145)  # Darker edge for depth
+        island_color = (160, 140, 100)  # Sandy tan
+        island_edge_color = (130, 110, 70)  # Darker border
 
-        # Draw river as a series of lines along the path
-        for i in range(len(path_x) - 1):
-            x1, y1 = int(path_x[i]), int(path_y[i])
-            x2, y2 = int(path_x[i + 1]), int(path_y[i + 1])
+        # Draw river as filled polygon
+        if polygons['river_polygon'] and len(polygons['river_polygon']) >= 3:
+            pygame.draw.polygon(self.screen, river_color, polygons['river_polygon'])
 
-            # Check if in split region
-            t = i / len(path_x)
-            if river_data['split'] and river_data['split_start'] <= t <= river_data['split_end']:
-                # Draw split channels
-                offset = river_data['island_width'] / 2
-                # Top channel
-                pygame.draw.line(self.screen, river_color, (x1, int(y1 - offset)), (x2, int(y2 - offset)), int(width / 2))
-                # Bottom channel
-                pygame.draw.line(self.screen, river_color, (x1, int(y1 + offset)), (x2, int(y2 + offset)), int(width / 2))
-                # Island in middle - LAND SANCTUARY (no flow)
-                island_radius = int(river_data['island_width'] / 2)
-                pygame.draw.circle(self.screen, island_color, (x1, y1), island_radius)
-                # Add some detail to make it look like land
-                pygame.draw.circle(self.screen, (160, 130, 95), (x1, y1), island_radius, 3)  # Lighter border
-            else:
-                # Draw normal river
-                pygame.draw.line(self.screen, river_color, (x1, y1), (x2, y2), int(width))
+            # Optional: draw subtle darker edge for depth
+            pygame.draw.polygon(self.screen, river_edge_color, polygons['river_polygon'], 2)
+
+        # Draw island as filled polygon
+        if polygons['island_polygon'] and len(polygons['island_polygon']) >= 3:
+            pygame.draw.polygon(self.screen, island_color, polygons['island_polygon'])
+
+            # Optional: darker edge for definition
+            pygame.draw.polygon(self.screen, island_edge_color, polygons['island_polygon'], 2)
 
     def draw(self):
         """Draw current state."""
