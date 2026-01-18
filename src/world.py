@@ -78,24 +78,60 @@ class World:
         # 2. Update physics
         for prey in self.prey:
             prey.update_physics()
-            # Apply river flow (reduced by swim speed)
+            # Apply river flow only in river direction (preserves perpendicular motion)
             if self.river.enabled:
                 flow_x, flow_y = self.river.get_flow_at(prey.pos[0], prey.pos[1])
-                # Better swimmers resist current more (swim_speed acts as resistance)
-                flow_factor = max(0, 1.0 - prey.swim_speed / 5.0)  # Higher swim speed = less affected
-                prey.vel[0] += flow_x * flow_factor
-                prey.vel[1] += flow_y * flow_factor
+                flow_mag = np.sqrt(flow_x**2 + flow_y**2)
+
+                if flow_mag > 0:
+                    # Get river direction (unit vector)
+                    river_dir_x = flow_x / flow_mag
+                    river_dir_y = flow_y / flow_mag
+
+                    # Decompose agent velocity into parallel and perpendicular components
+                    vel_parallel_mag = prey.vel[0] * river_dir_x + prey.vel[1] * river_dir_y  # dot product
+                    vel_parallel_x = vel_parallel_mag * river_dir_x
+                    vel_parallel_y = vel_parallel_mag * river_dir_y
+                    vel_perp_x = prey.vel[0] - vel_parallel_x
+                    vel_perp_y = prey.vel[1] - vel_parallel_y
+
+                    # Add river flow to parallel component only (reduced by swim speed)
+                    flow_factor = max(0, 1.0 - prey.swim_speed / 5.0)
+                    vel_parallel_x += flow_x * flow_factor
+                    vel_parallel_y += flow_y * flow_factor
+
+                    # Reconstruct velocity (perpendicular component unchanged)
+                    prey.vel[0] = vel_parallel_x + vel_perp_x
+                    prey.vel[1] = vel_parallel_y + vel_perp_y
             prey.time_since_reproduction += 1
 
         for predator in self.predators:
             predator.update_physics()
-            # Apply river flow (reduced by swim speed)
+            # Apply river flow only in river direction (preserves perpendicular motion)
             if self.river.enabled:
                 flow_x, flow_y = self.river.get_flow_at(predator.pos[0], predator.pos[1])
-                # Better swimmers resist current more (swim_speed acts as resistance)
-                flow_factor = max(0, 1.0 - predator.swim_speed / 5.0)  # Higher swim speed = less affected
-                predator.vel[0] += flow_x * flow_factor
-                predator.vel[1] += flow_y * flow_factor
+                flow_mag = np.sqrt(flow_x**2 + flow_y**2)
+
+                if flow_mag > 0:
+                    # Get river direction (unit vector)
+                    river_dir_x = flow_x / flow_mag
+                    river_dir_y = flow_y / flow_mag
+
+                    # Decompose agent velocity into parallel and perpendicular components
+                    vel_parallel_mag = predator.vel[0] * river_dir_x + predator.vel[1] * river_dir_y  # dot product
+                    vel_parallel_x = vel_parallel_mag * river_dir_x
+                    vel_parallel_y = vel_parallel_mag * river_dir_y
+                    vel_perp_x = predator.vel[0] - vel_parallel_x
+                    vel_perp_y = predator.vel[1] - vel_parallel_y
+
+                    # Add river flow to parallel component only (reduced by swim speed)
+                    flow_factor = max(0, 1.0 - predator.swim_speed / 5.0)
+                    vel_parallel_x += flow_x * flow_factor
+                    vel_parallel_y += flow_y * flow_factor
+
+                    # Reconstruct velocity (perpendicular component unchanged)
+                    predator.vel[0] = vel_parallel_x + vel_perp_x
+                    predator.vel[1] = vel_parallel_y + vel_perp_y
             predator.update_energy()
             predator.time_since_reproduction += 1
 

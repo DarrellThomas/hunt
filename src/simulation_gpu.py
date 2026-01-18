@@ -412,14 +412,30 @@ class GPUEcosystem:
             )
         self.prey_pos[self.prey_alive] = (self.prey_pos[self.prey_alive] + self.prey_vel[self.prey_alive]) % torch.tensor([self.width, self.height], device=self.device)
 
-        # Apply river flow to prey (GPU-resident)
+        # Apply river flow to prey only in river direction (preserves perpendicular motion)
         if self.river.enabled:
             flows = self.river.get_flow_at_batch_gpu(self.prey_pos[self.prey_alive])
             if len(flows) > 0:
-                # Better swimmers resist current more
+                # Get river direction (unit vector)
+                flow_mag = torch.norm(flows, dim=1, keepdim=True)
+                river_dir = torch.where(
+                    flow_mag > 0,
+                    flows / flow_mag,
+                    torch.zeros_like(flows)
+                )
+
+                # Decompose velocity into parallel and perpendicular components
+                vel_parallel_mag = torch.sum(self.prey_vel[self.prey_alive] * river_dir, dim=1, keepdim=True)  # dot product
+                vel_parallel = vel_parallel_mag * river_dir
+                vel_perp = self.prey_vel[self.prey_alive] - vel_parallel
+
+                # Add river flow to parallel component only (reduced by swim speed)
                 alive_swim_speeds = self.prey_swim_speed[self.prey_alive]
                 flow_factors = torch.clamp(1.0 - alive_swim_speeds / 5.0, min=0.0, max=1.0)
-                self.prey_vel[self.prey_alive] += flows * flow_factors.unsqueeze(1)
+                vel_parallel += flows * flow_factors.unsqueeze(1)
+
+                # Reconstruct velocity (perpendicular component unchanged)
+                self.prey_vel[self.prey_alive] = vel_parallel + vel_perp
 
         self.prey_age[self.prey_alive] += 1
         self.prey_repro_timer[self.prey_alive] += 1
@@ -450,14 +466,30 @@ class GPUEcosystem:
             )
         self.pred_pos[self.pred_alive] = (self.pred_pos[self.pred_alive] + self.pred_vel[self.pred_alive]) % torch.tensor([self.width, self.height], device=self.device)
 
-        # Apply river flow to predators (GPU-resident)
+        # Apply river flow to predators only in river direction (preserves perpendicular motion)
         if self.river.enabled:
             flows = self.river.get_flow_at_batch_gpu(self.pred_pos[self.pred_alive])
             if len(flows) > 0:
-                # Better swimmers resist current more
+                # Get river direction (unit vector)
+                flow_mag = torch.norm(flows, dim=1, keepdim=True)
+                river_dir = torch.where(
+                    flow_mag > 0,
+                    flows / flow_mag,
+                    torch.zeros_like(flows)
+                )
+
+                # Decompose velocity into parallel and perpendicular components
+                vel_parallel_mag = torch.sum(self.pred_vel[self.pred_alive] * river_dir, dim=1, keepdim=True)  # dot product
+                vel_parallel = vel_parallel_mag * river_dir
+                vel_perp = self.pred_vel[self.pred_alive] - vel_parallel
+
+                # Add river flow to parallel component only (reduced by swim speed)
                 alive_swim_speeds = self.pred_swim_speed[self.pred_alive]
                 flow_factors = torch.clamp(1.0 - alive_swim_speeds / 5.0, min=0.0, max=1.0)
-                self.pred_vel[self.pred_alive] += flows * flow_factors.unsqueeze(1)
+                vel_parallel += flows * flow_factors.unsqueeze(1)
+
+                # Reconstruct velocity (perpendicular component unchanged)
+                self.pred_vel[self.pred_alive] = vel_parallel + vel_perp
 
         self.pred_age[self.pred_alive] += 1
 
