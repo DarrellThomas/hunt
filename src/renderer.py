@@ -74,18 +74,47 @@ class Renderer:
         self.river = river
 
         # Set up display
-        flags = pygame.FULLSCREEN if config.fullscreen else 0
+        if config.fullscreen:
+            # Get native display resolution for true fullscreen
+            display_info = pygame.display.Info()
+            screen_width = display_info.current_w
+            screen_height = display_info.current_h
 
-        # Add space for stats panel at bottom
-        display_height = config.height + 100 if config.show_stats else config.height
-        self.screen = pygame.display.set_mode((config.width, display_height), flags)
+            # Use native resolution in fullscreen mode
+            self.screen = pygame.display.set_mode((screen_width, screen_height), pygame.FULLSCREEN)
+
+            # Store actual display size
+            self.display_width = screen_width
+            self.display_height = screen_height
+        else:
+            # Windowed mode: use config dimensions + stats panel
+            display_height = config.height + 100 if config.show_stats else config.height
+            self.screen = pygame.display.set_mode((config.width, display_height), 0)
+
+            # Store actual display size
+            self.display_width = config.width
+            self.display_height = display_height
+
         pygame.display.set_caption("HUNT - Predator-Prey Co-Evolution")
 
         self.clock = pygame.time.Clock()
         self.font = pygame.font.Font(None, 24)
         self.small_font = pygame.font.Font(None, 18)
 
-        # Cache river polygons (computed once)
+        # Calculate scaling factor for rendering
+        # Reserve 100 pixels for stats panel at bottom
+        available_height = self.display_height - 100 if config.show_stats else self.display_height
+
+        # Scale to fit display while maintaining aspect ratio
+        scale_x = self.display_width / config.width
+        scale_y = available_height / config.height
+        self.scale = min(scale_x, scale_y)  # Use smaller scale to fit both dimensions
+
+        # Calculate offsets to center the simulation
+        self.offset_x = (self.display_width - config.width * self.scale) / 2
+        self.offset_y = (available_height - config.height * self.scale) / 2
+
+        # Cache river polygons (computed once, will be scaled during rendering)
         self._river_polygons = None
         if river and river.enabled:
             self._river_polygons = river.get_river_polygons()
@@ -147,17 +176,23 @@ class Renderer:
         island_color = (160, 140, 100)    # Sandy tan
         island_edge = (130, 110, 70)      # Darker border
 
-        # Draw river polygon
+        # Scale and offset river polygon
         river_poly = self._river_polygons.get('river_polygon', [])
         if len(river_poly) >= 3:
-            pygame.draw.polygon(self.screen, water_color, river_poly)
-            pygame.draw.polygon(self.screen, water_edge, river_poly, width=2)
+            scaled_river = [(int(x * self.scale + self.offset_x),
+                            int(y * self.scale + self.offset_y))
+                           for x, y in river_poly]
+            pygame.draw.polygon(self.screen, water_color, scaled_river)
+            pygame.draw.polygon(self.screen, water_edge, scaled_river, width=2)
 
-        # Draw island polygon
+        # Scale and offset island polygon
         island_poly = self._river_polygons.get('island_polygon', [])
         if island_poly and len(island_poly) >= 3:
-            pygame.draw.polygon(self.screen, island_color, island_poly)
-            pygame.draw.polygon(self.screen, island_edge, island_poly, width=2)
+            scaled_island = [(int(x * self.scale + self.offset_x),
+                             int(y * self.scale + self.offset_y))
+                            for x, y in island_poly]
+            pygame.draw.polygon(self.screen, island_color, scaled_island)
+            pygame.draw.polygon(self.screen, island_edge, scaled_island, width=2)
 
     def _draw_agents(self, positions: Dict[str, np.ndarray]):
         """Draw all agents by species.
@@ -172,12 +207,17 @@ class Renderer:
             # Get color for this species (default to gray if not defined)
             color = self.config.species_colors.get(species_name, (200, 200, 200))
 
-            # Draw all agents of this species
+            # Draw all agents of this species (scaled and offset)
             for pos in pos_array:
+                scaled_x = int(pos[0] * self.scale + self.offset_x)
+                scaled_y = int(pos[1] * self.scale + self.offset_y)
+                # Scale radius too, but keep it at least 2 pixels
+                scaled_radius = max(2, int(self.config.agent_radius * self.scale))
+
                 pygame.draw.circle(
                     self.screen, color,
-                    (int(pos[0]), int(pos[1])),
-                    self.config.agent_radius
+                    (scaled_x, scaled_y),
+                    scaled_radius
                 )
 
     def _draw_stats(self, state: SimulationState):
@@ -186,9 +226,10 @@ class Renderer:
         Args:
             state: Current simulation state
         """
-        # Stats panel background
-        ui_y = self.config.height
-        pygame.draw.rect(self.screen, (30, 30, 40), (0, ui_y, self.config.width, 100))
+        # Stats panel at bottom (100 pixels high)
+        stats_height = 100
+        ui_y = self.display_height - stats_height
+        pygame.draw.rect(self.screen, (30, 30, 40), (0, ui_y, self.display_width, stats_height))
 
         # Build stats list
         stats_text = [f"Timestep: {state.timestep}"]
@@ -221,17 +262,17 @@ class Renderer:
         # Instructions
         instructions = "SPACE: Pause | ESC: Quit | S: Save Stats"
         surface = self.small_font.render(instructions, True, (200, 200, 200))
-        self.screen.blit(surface, (self.config.width - 350, ui_y + 70))
+        self.screen.blit(surface, (self.display_width - 350, ui_y + 70))
 
         # FPS counter
         fps = self.clock.get_fps()
         fps_text = self.small_font.render(f"FPS: {fps:.1f}", True, (200, 200, 200))
-        self.screen.blit(fps_text, (self.config.width - 100, ui_y + 10))
+        self.screen.blit(fps_text, (self.display_width - 100, ui_y + 10))
 
         # Pause indicator
         if self._paused:
             pause_text = self.font.render("PAUSED", True, (255, 255, 0))
-            self.screen.blit(pause_text, (self.config.width // 2 - 50, ui_y + 40))
+            self.screen.blit(pause_text, (self.display_width // 2 - 50, ui_y + 40))
 
     def is_paused(self) -> bool:
         """Check if renderer is paused."""
