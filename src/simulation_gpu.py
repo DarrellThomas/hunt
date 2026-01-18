@@ -51,21 +51,41 @@ class NeuralNetBatch(nn.Module):
 class GPUEcosystem:
     """Fully GPU-accelerated predator-prey ecosystem."""
 
-    def __init__(self, width=3200, height=2400, num_prey=8000, num_predators=2000, device='cuda'):
+    def __init__(self, width=3200, height=2400, num_prey=8000, num_predators=2000,
+                 max_prey_capacity=None, max_pred_capacity=None, device='cuda'):
+        """
+        Initialize GPU ecosystem with population capacity for growth.
+
+        Args:
+            width, height: World dimensions
+            num_prey, num_predators: Initial alive population
+            max_prey_capacity: Maximum prey slots (default: 3x num_prey)
+            max_pred_capacity: Maximum predator slots (default: 3x num_predators)
+            device: GPU device
+        """
         self.width = width
         self.height = height
         self.device = device
         self.timestep = 0
 
+        # Set maximum capacities (allow 3x growth by default)
+        if max_prey_capacity is None:
+            max_prey_capacity = num_prey * 3
+        if max_pred_capacity is None:
+            max_pred_capacity = num_predators * 3
+
+        self.max_prey_capacity = max_prey_capacity
+        self.max_pred_capacity = max_pred_capacity
+        self.initial_prey = num_prey
+        self.initial_predators = num_predators
+
         # Prey parameters (using config constants)
-        self.num_prey = num_prey
         self.prey_max_speed = PREY_MAX_SPEED
         self.prey_max_accel = PREY_MAX_ACCELERATION
         self.prey_max_age = PREY_MAX_LIFESPAN
         self.prey_repro_age = PREY_REPRODUCTION_AGE
 
         # Predator parameters (using config constants)
-        self.num_predators = num_predators
         self.pred_max_speed = PRED_MAX_SPEED
         self.pred_max_accel = PRED_MAX_ACCELERATION
         self.pred_max_age = PRED_MAX_LIFESPAN
@@ -80,52 +100,56 @@ class GPUEcosystem:
         # Create GPU-resident river
         self.river = RiverGPU(width, height, device=device)
 
-        # Initialize prey on GPU
-        self.prey_pos = torch.rand(num_prey, 2, device=device) * torch.tensor([width, height], device=device)
-        self.prey_vel = torch.randn(num_prey, 2, device=device) * 0.1
-        self.prey_acc = torch.zeros(num_prey, 2, device=device)
-        self.prey_age = torch.zeros(num_prey, device=device)
-        self.prey_repro_timer = torch.zeros(num_prey, device=device)
-        self.prey_alive = torch.ones(num_prey, dtype=torch.bool, device=device)
+        # Allocate prey tensors at MAX CAPACITY (not initial population)
+        self.prey_pos = torch.rand(max_prey_capacity, 2, device=device) * torch.tensor([width, height], device=device)
+        self.prey_vel = torch.randn(max_prey_capacity, 2, device=device) * 0.1
+        self.prey_acc = torch.zeros(max_prey_capacity, 2, device=device)
+        self.prey_age = torch.zeros(max_prey_capacity, device=device)
+        self.prey_repro_timer = torch.zeros(max_prey_capacity, device=device)
+        # Only initial num_prey are alive, rest are dead (available for reproduction)
+        self.prey_alive = torch.zeros(max_prey_capacity, dtype=torch.bool, device=device)
+        self.prey_alive[:num_prey] = True
+
         # Evolvable swimming ability for each prey
         self.prey_swim_speed = torch.clamp(
-            torch.normal(PREY_SWIM_SPEED, 0.2, size=(num_prey,), device=device),
+            torch.normal(PREY_SWIM_SPEED, 0.2, size=(max_prey_capacity,), device=device),
             min=0.1
         )
 
         # Individual lifespan and reproduction timing for each prey (normal distribution)
-        # Prevents synchronized birth/death waves
         self.prey_max_age_individual = torch.clamp(
-            torch.normal(self.prey_max_age, PREY_LIFESPAN_VARIANCE, size=(num_prey,), device=device),
+            torch.normal(self.prey_max_age, PREY_LIFESPAN_VARIANCE, size=(max_prey_capacity,), device=device),
             min=100
         )
         self.prey_repro_age_individual = torch.clamp(
-            torch.normal(self.prey_repro_age, PREY_REPRODUCTION_VARIANCE, size=(num_prey,), device=device),
+            torch.normal(self.prey_repro_age, PREY_REPRODUCTION_VARIANCE, size=(max_prey_capacity,), device=device),
             min=50
         )
 
-        # Initialize predators on GPU
-        self.pred_pos = torch.rand(num_predators, 2, device=device) * torch.tensor([width, height], device=device)
-        self.pred_vel = torch.randn(num_predators, 2, device=device) * 0.1
-        self.pred_acc = torch.zeros(num_predators, 2, device=device)
-        self.pred_age = torch.zeros(num_predators, device=device)
-        self.pred_energy = torch.full((num_predators,), float(self.pred_max_energy), dtype=torch.float32, device=device)
-        self.pred_repro_timer = torch.zeros(num_predators, device=device)
-        self.pred_alive = torch.ones(num_predators, dtype=torch.bool, device=device)
+        # Allocate predator tensors at MAX CAPACITY (not initial population)
+        self.pred_pos = torch.rand(max_pred_capacity, 2, device=device) * torch.tensor([width, height], device=device)
+        self.pred_vel = torch.randn(max_pred_capacity, 2, device=device) * 0.1
+        self.pred_acc = torch.zeros(max_pred_capacity, 2, device=device)
+        self.pred_age = torch.zeros(max_pred_capacity, device=device)
+        self.pred_energy = torch.full((max_pred_capacity,), float(self.pred_max_energy), dtype=torch.float32, device=device)
+        self.pred_repro_timer = torch.zeros(max_pred_capacity, device=device)
+        # Only initial num_predators are alive, rest are dead (available for reproduction)
+        self.pred_alive = torch.zeros(max_pred_capacity, dtype=torch.bool, device=device)
+        self.pred_alive[:num_predators] = True
+
         # Evolvable swimming ability for each predator
         self.pred_swim_speed = torch.clamp(
-            torch.normal(PRED_SWIM_SPEED, 0.2, size=(num_predators,), device=device),
+            torch.normal(PRED_SWIM_SPEED, 0.2, size=(max_pred_capacity,), device=device),
             min=0.1
         )
 
         # Individual lifespan and reproduction timing for each predator (normal distribution)
-        # Prevents synchronized birth/death waves
         self.pred_max_age_individual = torch.clamp(
-            torch.normal(self.pred_max_age, PRED_LIFESPAN_VARIANCE, size=(num_predators,), device=device),
+            torch.normal(self.pred_max_age, PRED_LIFESPAN_VARIANCE, size=(max_pred_capacity,), device=device),
             min=200
         )
         self.pred_repro_cooldown_individual = torch.clamp(
-            torch.normal(self.pred_repro_cooldown, PRED_REPRODUCTION_VARIANCE, size=(num_predators,), device=device),
+            torch.normal(self.pred_repro_cooldown, PRED_REPRODUCTION_VARIANCE, size=(max_pred_capacity,), device=device),
             min=50
         )
 
@@ -137,9 +161,9 @@ class GPUEcosystem:
         self.prey_weight_count = self._calc_weight_count(self.prey_arch)
         self.pred_weight_count = self._calc_weight_count(self.pred_arch)
 
-        # Initialize random weights for each agent (small initial values)
-        self.prey_weights = torch.randn(num_prey, self.prey_weight_count, device=device) * 0.1
-        self.pred_weights = torch.randn(num_predators, self.pred_weight_count, device=device) * 0.1
+        # Initialize random weights at MAX CAPACITY
+        self.prey_weights = torch.randn(max_prey_capacity, self.prey_weight_count, device=device) * 0.1
+        self.pred_weights = torch.randn(max_pred_capacity, self.pred_weight_count, device=device) * 0.1
 
         # Statistics tracking for evolution analysis
         self.stats = {
@@ -163,7 +187,9 @@ class GPUEcosystem:
 
         print(f"GPU Ecosystem initialized on {device}")
         print(f"World: {width}x{height}")
-        print(f"Prey: {num_prey}, Predators: {num_predators}")
+        print(f"Initial Population: {num_prey:,} prey, {num_predators:,} predators")
+        print(f"Maximum Capacity: {max_prey_capacity:,} prey slots, {max_pred_capacity:,} predator slots")
+        print(f"Growth headroom: {max_prey_capacity/num_prey:.1f}x prey, {max_pred_capacity/num_predators:.1f}x predators")
 
     def compute_toroidal_distances(self, pos1, pos2):
         """Compute all pairwise distances with toroidal wrapping on GPU.

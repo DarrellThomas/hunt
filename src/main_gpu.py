@@ -43,6 +43,8 @@ def main():
     print(f"Creating simulation with {num_prey:,} prey, {num_predators:,} predators")
 
     # Create GPU simulation at native resolution minus stats panel
+    # Note: Automatically allocates 3x capacity for population growth
+    # (e.g., 8240 initial prey → 24720 max capacity)
     ecosystem = GPUEcosystem(
         width=sim_width,
         height=sim_height,
