@@ -3,6 +3,7 @@ Analyze evolutionary trends and speciation in the HUNT ecosystem.
 Visualizes swim speed evolution and land vs water specialization.
 """
 
+import argparse
 import numpy as np
 import matplotlib.pyplot as plt
 from pathlib import Path
@@ -11,10 +12,20 @@ def load_stats(filename='stats_autosave.npz'):
     """Load statistics from file."""
     if not Path(filename).exists():
         print(f"Error: {filename} not found. Run a simulation first!")
-        return None
+        return None, None
 
-    data = np.load(filename)
-    return {key: data[key] for key in data.files}
+    data = np.load(filename, allow_pickle=True)
+    stats = {key: data[key] for key in data.files if key != 'metadata'}
+
+    # Extract metadata if present
+    metadata = None
+    if 'metadata' in data:
+        try:
+            metadata = data['metadata'].item()
+        except:
+            pass
+
+    return stats, metadata
 
 def analyze_speciation(stats):
     """Analyze if speciation (land vs water) is occurring."""
@@ -41,8 +52,14 @@ def analyze_speciation(stats):
         'pred_diversity_increase': (final_pred_std / initial_pred_std) if initial_pred_std > 0 else 1.0,
     }
 
-def plot_evolution(stats):
-    """Create comprehensive evolution visualization."""
+def plot_evolution(stats, title='HUNT Ecosystem - Evolutionary Dynamics', metadata=None):
+    """Create comprehensive evolution visualization.
+
+    Args:
+        stats: Statistics dictionary from .npz file
+        title: Title for the figure
+        metadata: Optional metadata dictionary with run information
+    """
     timesteps = stats['timesteps']
 
     # Check if we have swim speed data (new format) or not (old format)
@@ -53,7 +70,12 @@ def plot_evolution(stats):
     else:
         fig, axes = plt.subplots(2, 2, figsize=(14, 10))
 
-    fig.suptitle('HUNT Ecosystem - Evolutionary Dynamics', fontsize=16, fontweight='bold')
+    # Use provided title (with metadata if available)
+    if metadata and 'start_time' in metadata:
+        title_with_metadata = f"{title}\n(Started: {metadata.get('start_time', 'Unknown')[:10]})"
+        fig.suptitle(title_with_metadata, fontsize=16, fontweight='bold')
+    else:
+        fig.suptitle(title, fontsize=16, fontweight='bold')
 
     # Plot 1: Population over time
     ax = axes[0, 0]
@@ -212,26 +234,56 @@ def plot_evolution(stats):
                 bbox=dict(boxstyle='round', facecolor='wheat', alpha=0.5))
 
     plt.tight_layout()
-    plt.savefig('evolution_analysis.png', dpi=150, bbox_inches='tight')
-    print("✓ Evolution analysis saved to: evolution_analysis.png")
-    plt.show()
+    return fig
 
 def main():
     """Main analysis function."""
+    # Parse command line arguments
+    parser = argparse.ArgumentParser(description='Analyze HUNT evolution statistics')
+    parser.add_argument('stats_file', type=str, nargs='?', default='stats_autosave.npz',
+                        help='Path to stats .npz file (default: stats_autosave.npz)')
+    parser.add_argument('--title', type=str, default=None,
+                        help='Title for the analysis graphs (default: from metadata or generic)')
+    parser.add_argument('--output', type=str, default=None,
+                        help='Save figure to file instead of displaying (e.g., analysis.png)')
+    args = parser.parse_args()
+
     print("\n" + "="*60)
     print("HUNT Ecosystem - Evolutionary Analysis")
     print("="*60 + "\n")
 
-    stats = load_stats('stats_autosave.npz')
+    stats, metadata = load_stats(args.stats_file)
     if stats is None:
         return
 
     print(f"Loaded {len(stats['timesteps'])} data points")
     print(f"Timesteps: {stats['timesteps'][0]} to {stats['timesteps'][-1]}")
+
+    # Determine title (priority: CLI arg > metadata > default)
+    if args.title:
+        title = args.title
+    elif metadata and 'run_title' in metadata:
+        title = metadata['run_title']
+    else:
+        title = 'HUNT Ecosystem - Evolutionary Dynamics'
+
+    if metadata:
+        print(f"Run title: {metadata.get('run_title', 'Unknown')}")
+        print(f"Started: {metadata.get('start_time', 'Unknown')}")
     print()
 
     # Analyze and plot
-    plot_evolution(stats)
+    fig = plot_evolution(stats, title=title, metadata=metadata)
+
+    # Save or show
+    if args.output:
+        fig.savefig(args.output, dpi=150, bbox_inches='tight')
+        print(f"✓ Figure saved to: {args.output}")
+    else:
+        # Default behavior: save to evolution_analysis.png and show
+        fig.savefig('evolution_analysis.png', dpi=150, bbox_inches='tight')
+        print("✓ Evolution analysis saved to: evolution_analysis.png")
+        plt.show()
 
     print("\n" + "="*60)
     print("Analysis complete!")

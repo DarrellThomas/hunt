@@ -185,6 +185,30 @@ class GPUEcosystem:
         self.extinct = False
         self.extinction_message = ""
 
+        # Metadata for analysis and run tracking
+        import datetime
+        import platform
+        self.metadata = {
+            'run_title': 'Untitled Run',  # Can be set via CLI
+            'start_time': datetime.datetime.now().isoformat(),
+            'world_width': width,
+            'world_height': height,
+            'initial_prey': num_prey,
+            'initial_predators': num_predators,
+            'max_prey_capacity': max_prey_capacity,
+            'max_pred_capacity': max_pred_capacity,
+            'device': str(device),
+            'platform': platform.system(),
+            'python_version': platform.python_version(),
+            # Config snapshot (key parameters)
+            'config_friction': FRICTION,
+            'config_prey_max_speed': PREY_MAX_SPEED,
+            'config_pred_max_speed': PRED_MAX_SPEED,
+            'config_river_enabled': RIVER_ENABLED,
+            'config_river_flow_speed': RIVER_FLOW_SPEED if RIVER_ENABLED else 0,
+            'config_extinction_threshold': EXTINCTION_THRESHOLD,
+        }
+
         print(f"GPU Ecosystem initialized on {device}")
         print(f"World: {width}x{height}")
         print(f"Initial Population: {num_prey:,} prey, {num_predators:,} predators")
@@ -924,7 +948,124 @@ class GPUEcosystem:
         """Save statistics to file for evolution analysis."""
         # Convert lists to numpy arrays for saving
         save_dict = {key: np.array(val) for key, val in self.stats.items()}
+        # Include metadata
+        save_dict['metadata'] = np.array([self.metadata], dtype=object)
         np.savez(filename, **save_dict)
         print(f"Statistics saved to {filename}")
         print(f"  Data points: {len(self.stats['timesteps'])}")
         print(f"  Timesteps: {self.stats['timesteps'][0]} to {self.stats['timesteps'][-1]}")
+
+    def save_brain_weights(self, name=None):
+        """Save all agent brain weights and state to disk.
+
+        Args:
+            name: Optional name for the save file. If None, uses timestep.
+        """
+        import datetime
+
+        if name is None:
+            filename = f'brains_step_{self.timestep}.npz'
+        else:
+            # Clean the name, ensure .npz extension
+            name = name.replace(' ', '_')
+            if not name.endswith('.npz'):
+                filename = f'brains_{name}.npz'
+            else:
+                filename = name
+
+        # Update metadata with save time
+        save_metadata = self.metadata.copy()
+        save_metadata['save_time'] = datetime.datetime.now().isoformat()
+        save_metadata['save_timestep'] = self.timestep
+
+        np.savez(filename,
+            # Brain weights (critical for persistence)
+            prey_weights=self.prey_weights.cpu().numpy(),
+            pred_weights=self.pred_weights.cpu().numpy(),
+
+            # Agent state
+            timestep=self.timestep,
+            prey_alive=self.prey_alive.cpu().numpy(),
+            pred_alive=self.pred_alive.cpu().numpy(),
+
+            # Evolvable traits
+            prey_swim_speed=self.prey_swim_speed.cpu().numpy(),
+            pred_swim_speed=self.pred_swim_speed.cpu().numpy(),
+            prey_max_age_individual=self.prey_max_age_individual.cpu().numpy(),
+            prey_repro_age_individual=self.prey_repro_age_individual.cpu().numpy(),
+            pred_max_age_individual=self.pred_max_age_individual.cpu().numpy(),
+            pred_repro_cooldown_individual=self.pred_repro_cooldown_individual.cpu().numpy(),
+
+            # Positions and velocities (for visualization/continuation)
+            prey_pos=self.prey_pos.cpu().numpy(),
+            pred_pos=self.pred_pos.cpu().numpy(),
+            prey_vel=self.prey_vel.cpu().numpy(),
+            pred_vel=self.pred_vel.cpu().numpy(),
+
+            # Age and energy state
+            prey_age=self.prey_age.cpu().numpy(),
+            prey_repro_timer=self.prey_repro_timer.cpu().numpy(),
+            pred_age=self.pred_age.cpu().numpy(),
+            pred_energy=self.pred_energy.cpu().numpy(),
+            pred_repro_timer=self.pred_repro_timer.cpu().numpy(),
+
+            # Metadata
+            metadata=np.array([save_metadata], dtype=object),
+        )
+
+        print(f"Brain weights saved to {filename}")
+        print(f"  Timestep: {self.timestep}")
+        print(f"  Prey: {self.prey_alive.sum().item()} alive / {len(self.prey_alive)} capacity")
+        print(f"  Predators: {self.pred_alive.sum().item()} alive / {len(self.pred_alive)} capacity")
+
+    def load_brain_weights(self, filename):
+        """Load agent brain weights and state from disk.
+
+        Args:
+            filename: Path to the .npz file
+        """
+        print(f"Loading brain weights from {filename}...")
+        data = np.load(filename, allow_pickle=True)
+
+        # Restore brain weights
+        self.prey_weights = torch.tensor(data['prey_weights'], device=self.device)
+        self.pred_weights = torch.tensor(data['pred_weights'], device=self.device)
+
+        # Restore alive masks
+        self.prey_alive = torch.tensor(data['prey_alive'], device=self.device)
+        self.pred_alive = torch.tensor(data['pred_alive'], device=self.device)
+
+        # Restore evolvable traits
+        self.prey_swim_speed = torch.tensor(data['prey_swim_speed'], device=self.device)
+        self.pred_swim_speed = torch.tensor(data['pred_swim_speed'], device=self.device)
+        self.prey_max_age_individual = torch.tensor(data['prey_max_age_individual'], device=self.device)
+        self.prey_repro_age_individual = torch.tensor(data['prey_repro_age_individual'], device=self.device)
+        self.pred_max_age_individual = torch.tensor(data['pred_max_age_individual'], device=self.device)
+        self.pred_repro_cooldown_individual = torch.tensor(data['pred_repro_cooldown_individual'], device=self.device)
+
+        # Restore positions and velocities
+        self.prey_pos = torch.tensor(data['prey_pos'], device=self.device)
+        self.pred_pos = torch.tensor(data['pred_pos'], device=self.device)
+        self.prey_vel = torch.tensor(data['prey_vel'], device=self.device)
+        self.pred_vel = torch.tensor(data['pred_vel'], device=self.device)
+
+        # Restore age and energy state
+        self.prey_age = torch.tensor(data['prey_age'], device=self.device)
+        self.prey_repro_timer = torch.tensor(data['prey_repro_timer'], device=self.device)
+        self.pred_age = torch.tensor(data['pred_age'], device=self.device)
+        self.pred_energy = torch.tensor(data['pred_energy'], device=self.device)
+        self.pred_repro_timer = torch.tensor(data['pred_repro_timer'], device=self.device)
+
+        # Restore timestep
+        self.timestep = int(data['timestep'])
+
+        # Load metadata if present
+        if 'metadata' in data:
+            loaded_metadata = data['metadata'].item()
+            print(f"  Run title: {loaded_metadata.get('run_title', 'Unknown')}")
+            print(f"  Original start: {loaded_metadata.get('start_time', 'Unknown')}")
+
+        print(f"Brain weights loaded successfully!")
+        print(f"  Resumed at timestep: {self.timestep}")
+        print(f"  Prey: {self.prey_alive.sum().item()} alive")
+        print(f"  Predators: {self.pred_alive.sum().item()} alive")

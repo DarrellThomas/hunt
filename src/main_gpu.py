@@ -8,6 +8,7 @@ Simplified to use unified renderer from renderer.py.
 import warnings
 warnings.filterwarnings('ignore', message='.*pkg_resources.*', category=UserWarning)
 
+import argparse
 import numpy as np
 from simulation_gpu import GPUEcosystem
 from renderer import Renderer, RenderConfig, create_state_from_gpu_ecosystem
@@ -17,6 +18,16 @@ from config import INITIAL_PREY_POPULATION, INITIAL_PREDATOR_POPULATION
 def main():
     """Main entry point for GPU simulation with visualization."""
     import pygame
+
+    # Parse command line arguments
+    parser = argparse.ArgumentParser(description='HUNT GPU Simulation with Brain Persistence')
+    parser.add_argument('--title', type=str, default='Untitled Run',
+                        help='Title for this experimental run (saved in metadata)')
+    parser.add_argument('--load-brains', type=str, default=None,
+                        help='Load brain weights from file to continue evolution')
+    parser.add_argument('--brain-checkpoint', type=str, default=None,
+                        help='Name prefix for brain checkpoint saves')
+    args = parser.parse_args()
 
     # Detect native monitor resolution for true fullscreen
     pygame.init()
@@ -55,6 +66,14 @@ def main():
         device='cuda'
     )
 
+    # Set run title from CLI argument
+    ecosystem.metadata['run_title'] = args.title
+
+    # Load brain weights if specified
+    if args.load_brains:
+        ecosystem.load_brain_weights(args.load_brains)
+        print(f"\n▶ Resuming evolution from {args.load_brains}")
+
     # Create unified renderer (fullscreen at native resolution)
     render_config = RenderConfig(
         width=sim_width,
@@ -69,19 +88,25 @@ def main():
     print("\n" + "="*60)
     print(f"HUNT GPU - {num_prey + num_predators:,} Agent Co-Evolution")
     print("="*60)
+    print(f"Run Title: {args.title}")
     print(f"World: {ecosystem.width}x{ecosystem.height} (native resolution)")
     print(f"Initial: {num_prey:,} prey, {num_predators:,} predators")
     print(f"Device: {ecosystem.device}")
     print("Controls:")
     print("  SPACE - Pause/Resume")
     print("  S - Save stats to stats_autosave.npz")
+    print("  B - Save brain weights checkpoint")
     print("  ESC - Quit")
-    print(f"Auto-save: Every 100 timesteps")
+    print(f"Auto-save stats: Every 100 timesteps")
+    print(f"Auto-save brains: Every 10,000 timesteps")
     print("="*60 + "\n")
 
     # Main loop
     running = True
-    autosave_interval = 100  # Auto-save every 100 timesteps
+    autosave_stats_interval = 100  # Auto-save stats every 100 timesteps
+    autosave_brains_interval = 10000  # Auto-save brains every 10,000 timesteps
+    brain_save_requested = False  # Flag for B key press
+
     try:
         while running:
             # Update simulation (if not paused)
@@ -97,9 +122,14 @@ def main():
                     running = False
                     break
 
-                # Auto-save periodically
-                if ecosystem.timestep % autosave_interval == 0 and ecosystem.timestep > 0:
+                # Auto-save stats periodically
+                if ecosystem.timestep % autosave_stats_interval == 0 and ecosystem.timestep > 0:
                     ecosystem.save_stats()
+
+                # Auto-save brains periodically
+                if ecosystem.timestep % autosave_brains_interval == 0 and ecosystem.timestep > 0:
+                    brain_name = args.brain_checkpoint or f'autosave_{ecosystem.timestep}'
+                    ecosystem.save_brain_weights(brain_name)
 
                 # Print progress
                 if ecosystem.timestep % 100 == 0:
@@ -118,12 +148,25 @@ def main():
             if save_requested:
                 ecosystem.save_stats()
 
+            # Manual brain save on B key (we'll need to add this to renderer)
+            # For now, check pygame events directly
+            import pygame
+            for event in pygame.event.get():
+                if event.type == pygame.KEYDOWN and event.key == pygame.K_b:
+                    brain_name = args.brain_checkpoint or f'manual_{ecosystem.timestep}'
+                    ecosystem.save_brain_weights(brain_name)
+                    print(f"✓ Manual brain save triggered")
+
     except KeyboardInterrupt:
         print("\n\nSimulation interrupted by user.")
 
     finally:
-        # Final save
+        # Final saves
         ecosystem.save_stats()
+
+        # Save final brain state
+        final_brain_name = args.brain_checkpoint or f'final_{ecosystem.timestep}'
+        ecosystem.save_brain_weights(final_brain_name)
 
         # Final statistics
         print("\n" + "="*60)
@@ -133,6 +176,7 @@ def main():
         print(f"Final: {final_state['prey_count']} prey, "
               f"{final_state['pred_count']} predators")
         print(f"Total timesteps: {ecosystem.timestep}")
+        print(f"Run title: {args.title}")
 
         renderer.close()
 
