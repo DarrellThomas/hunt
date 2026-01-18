@@ -102,17 +102,25 @@ class Renderer:
         self.small_font = pygame.font.Font(None, 18)
 
         # Calculate scaling factor for rendering
+        # If simulation matches display size, no scaling needed (scale=1.0)
         # Reserve 100 pixels for stats panel at bottom
         available_height = self.display_height - 100 if config.show_stats else self.display_height
 
-        # Scale to fit display while maintaining aspect ratio
-        scale_x = self.display_width / config.width
-        scale_y = available_height / config.height
-        self.scale = min(scale_x, scale_y)  # Use smaller scale to fit both dimensions
+        # Check if we need scaling
+        if config.fullscreen and config.width == self.display_width and config.height == available_height:
+            # Perfect match - no scaling needed
+            self.scale = 1.0
+            self.offset_x = 0
+            self.offset_y = 0
+        else:
+            # Scale to fit display while maintaining aspect ratio
+            scale_x = self.display_width / config.width
+            scale_y = available_height / config.height
+            self.scale = min(scale_x, scale_y)  # Use smaller scale to fit both dimensions
 
-        # Calculate offsets to center the simulation
-        self.offset_x = (self.display_width - config.width * self.scale) / 2
-        self.offset_y = (available_height - config.height * self.scale) / 2
+            # Calculate offsets to center the simulation
+            self.offset_x = (self.display_width - config.width * self.scale) / 2
+            self.offset_y = (available_height - config.height * self.scale) / 2
 
         # Cache river polygons (computed once, will be scaled during rendering)
         self._river_polygons = None

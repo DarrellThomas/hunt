@@ -15,21 +15,47 @@ from renderer import Renderer, RenderConfig, create_state_from_gpu_ecosystem
 
 def main():
     """Main entry point for GPU simulation with visualization."""
-    # Create GPU simulation
-    # Large world: 3200x2400 with 10,000 agents for GPU acceleration
+    import pygame
+
+    # Detect native monitor resolution for true fullscreen
+    pygame.init()
+    display_info = pygame.display.Info()
+    screen_width = display_info.current_w
+    screen_height = display_info.current_h
+    pygame.quit()  # Close init, renderer will re-init
+
+    # Reserve space for stats panel (100 pixels)
+    stats_panel_height = 100
+    sim_width = screen_width
+    sim_height = screen_height - stats_panel_height
+
+    # Calculate agent counts proportional to screen area
+    # Base: 3200x2400 = 7,680,000 pixels with 10,000 agents
+    base_pixels = 3200 * 2400
+    sim_pixels = sim_width * sim_height
+    scale_factor = sim_pixels / base_pixels
+
+    num_prey = int(8000 * scale_factor)
+    num_predators = int(2000 * scale_factor)
+
+    print(f"Detected monitor: {screen_width}x{screen_height}")
+    print(f"Simulation area: {sim_width}x{sim_height} (reserving {stats_panel_height}px for stats)")
+    print(f"Creating simulation with {num_prey:,} prey, {num_predators:,} predators")
+
+    # Create GPU simulation at native resolution minus stats panel
     ecosystem = GPUEcosystem(
-        width=3200,
-        height=2400,
-        num_prey=8000,
-        num_predators=2000,
+        width=sim_width,
+        height=sim_height,
+        num_prey=num_prey,
+        num_predators=num_predators,
         device='cuda'
     )
 
-    # Create unified renderer
+    # Create unified renderer (fullscreen at native resolution)
     render_config = RenderConfig(
-        width=3200,
-        height=2400,
-        fullscreen=True,  # GPU version typically runs fullscreen
+        width=sim_width,
+        height=sim_height,
+        fullscreen=True,
         target_fps=60,
         show_stats=True
     )
@@ -37,10 +63,10 @@ def main():
 
     # Print startup info
     print("\n" + "="*60)
-    print("HUNT GPU - 10,000 Agent Co-Evolution")
+    print(f"HUNT GPU - {num_prey + num_predators:,} Agent Co-Evolution")
     print("="*60)
-    print(f"World: {ecosystem.width}x{ecosystem.height}")
-    print(f"Initial: {ecosystem.num_prey} prey, {ecosystem.num_predators} predators")
+    print(f"World: {ecosystem.width}x{ecosystem.height} (native resolution)")
+    print(f"Initial: {num_prey:,} prey, {num_predators:,} predators")
     print(f"Device: {ecosystem.device}")
     print("Controls:")
     print("  SPACE - Pause/Resume")
