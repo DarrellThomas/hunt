@@ -141,6 +141,22 @@ class GPUEcosystem:
         self.prey_weights = torch.randn(num_prey, self.prey_weight_count, device=device) * 0.1
         self.pred_weights = torch.randn(num_predators, self.pred_weight_count, device=device) * 0.1
 
+        # Statistics tracking for evolution analysis
+        self.stats = {
+            'timesteps': [],
+            'prey_count': [],
+            'pred_count': [],
+            'prey_avg_age': [],
+            'pred_avg_age': [],
+            'pred_avg_energy': [],
+            'prey_avg_swim': [],
+            'prey_std_swim': [],
+            'pred_avg_swim': [],
+            'pred_std_swim': [],
+            'prey_in_river_pct': [],
+            'pred_in_river_pct': [],
+        }
+
         print(f"GPU Ecosystem initialized on {device}")
         print(f"World: {width}x{height}")
         print(f"Prey: {num_prey}, Predators: {num_predators}")
@@ -659,6 +675,9 @@ class GPUEcosystem:
         # Unified extinction prevention
         self._handle_extinction_prevention()
 
+        # Record statistics for evolution analysis
+        self.record_stats()
+
         # === REMOVED: Global mutation code (incorrect neuroevolution) ===
         # Mutation now happens ONLY at reproduction with parent weight inheritance
 
@@ -833,3 +852,30 @@ class GPUEcosystem:
             state['pred_on_island_pct'] = 0
 
         return state
+
+    def record_stats(self):
+        """Record current state statistics for evolution tracking."""
+        # Use get_state_cpu to get all necessary stats
+        state = self.get_state_cpu()
+
+        self.stats['timesteps'].append(self.timestep)
+        self.stats['prey_count'].append(state['prey_count'])
+        self.stats['pred_count'].append(state['pred_count'])
+        self.stats['prey_avg_age'].append(state['prey_avg_age'])
+        self.stats['pred_avg_age'].append(state['pred_avg_age'])
+        self.stats['pred_avg_energy'].append(state['pred_avg_energy'])
+        self.stats['prey_avg_swim'].append(state['prey_avg_swim'])
+        self.stats['prey_std_swim'].append(state['prey_std_swim'])
+        self.stats['pred_avg_swim'].append(state['pred_avg_swim'])
+        self.stats['pred_std_swim'].append(state['pred_std_swim'])
+        self.stats['prey_in_river_pct'].append(state['prey_in_river_pct'])
+        self.stats['pred_in_river_pct'].append(state['pred_in_river_pct'])
+
+    def save_stats(self, filename='stats_autosave.npz'):
+        """Save statistics to file for evolution analysis."""
+        # Convert lists to numpy arrays for saving
+        save_dict = {key: np.array(val) for key, val in self.stats.items()}
+        np.savez(filename, **save_dict)
+        print(f"Statistics saved to {filename}")
+        print(f"  Data points: {len(self.stats['timesteps'])}")
+        print(f"  Timesteps: {self.stats['timesteps'][0]} to {self.stats['timesteps'][-1]}")

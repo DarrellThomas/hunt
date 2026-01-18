@@ -70,16 +70,23 @@ def main():
     print(f"Device: {ecosystem.device}")
     print("Controls:")
     print("  SPACE - Pause/Resume")
+    print("  S - Save stats to stats_autosave.npz")
     print("  ESC - Quit")
+    print(f"Auto-save: Every 100 timesteps")
     print("="*60 + "\n")
 
     # Main loop
     running = True
+    autosave_interval = 100  # Auto-save every 100 timesteps
     try:
         while running:
             # Update simulation (if not paused)
             if not renderer.is_paused():
                 ecosystem.step()
+
+                # Auto-save periodically
+                if ecosystem.timestep % autosave_interval == 0 and ecosystem.timestep > 0:
+                    ecosystem.save_stats()
 
                 # Print progress
                 if ecosystem.timestep % 100 == 0:
@@ -92,12 +99,19 @@ def main():
             state = create_state_from_gpu_ecosystem(ecosystem)
 
             # Render (returns continue_running, save_requested)
-            running, _save_requested = renderer.render(state)
+            running, save_requested = renderer.render(state)
+
+            # Manual save on user request (S key)
+            if save_requested:
+                ecosystem.save_stats()
 
     except KeyboardInterrupt:
         print("\n\nSimulation interrupted by user.")
 
     finally:
+        # Final save
+        ecosystem.save_stats()
+
         # Final statistics
         print("\n" + "="*60)
         print("SIMULATION COMPLETE")
