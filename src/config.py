@@ -54,13 +54,12 @@ RIVER_ISLAND_WIDTH = 200          # Width of island between split channels
 # ISLAND BEHAVIOR MODIFIERS
 # ============================================================================
 # These multipliers affect agent behavior while on the island
-# Set to 1.0 for no change, >1.0 to increase, <1.0 to decrease
 
 # Prey modifiers
-ISLAND_PREY_SPEED_MULTIPLIER = 1.0          # Speed multiplier for prey on island
-ISLAND_PREY_REPRODUCTION_MULTIPLIER = 1.0   # Reproduction rate for prey (lower value = faster reproduction)
+ISLAND_PREY_SPEED_MULTIPLIER = 1.0          # Speed modifier (1.0 = normal, 1.5 = 50% faster, 0.5 = 50% slower)
+ISLAND_PREY_REPRODUCTION_MULTIPLIER = 1.0   # Reproduction wait time modifier (1.0 = normal, 0.5 = reproduce 2x faster, 2.0 = reproduce 2x slower)
 
 # Predator modifiers
-ISLAND_PRED_SPEED_MULTIPLIER = 1.0          # Speed multiplier for predators on island
-ISLAND_PRED_HUNGER_MULTIPLIER = 1.0         # Hunger rate for predators (higher = hungrier faster)
-ISLAND_PRED_REPRODUCTION_MULTIPLIER = 1.0   # Reproduction rate for predators (lower value = faster reproduction)
+ISLAND_PRED_SPEED_MULTIPLIER = 1.0          # Speed modifier (1.0 = normal, 1.5 = 50% faster, 0.5 = 50% slower)
+ISLAND_PRED_HUNGER_MULTIPLIER = 1.0         # Hunger rate modifier (1.0 = normal, 2.0 = get hungry 2x faster, 0.5 = get hungry 2x slower)
+ISLAND_PRED_REPRODUCTION_MULTIPLIER = 1.0   # Reproduction wait time modifier (1.0 = normal, 0.5 = reproduce 2x faster, 2.0 = reproduce 2x slower)
