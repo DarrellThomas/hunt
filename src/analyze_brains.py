@@ -35,6 +35,20 @@ def print_summary(data, verbose=False):
         print(f"  World Size: {metadata.get('world_width', '?')}x{metadata.get('world_height', '?')}")
         print(f"  Device: {metadata.get('device', 'Unknown')}")
 
+        # Configuration parameters
+        print(f"\nConfiguration Parameters:")
+        print(f"  Initial Population: {metadata.get('initial_prey', '?'):,} prey, {metadata.get('initial_predators', '?'):,} predators")
+        print(f"  Max Capacity: {metadata.get('max_prey_capacity', '?'):,} prey, {metadata.get('max_pred_capacity', '?'):,} predators")
+        print(f"  Friction: {metadata.get('config_friction', '?')}")
+        print(f"  Prey Max Speed: {metadata.get('config_prey_max_speed', '?')}")
+        print(f"  Predator Max Speed: {metadata.get('config_pred_max_speed', '?')}")
+        river_enabled = metadata.get('config_river_enabled', '?')
+        print(f"  River Enabled: {river_enabled}")
+        if river_enabled:
+            print(f"  River Flow Speed: {metadata.get('config_river_flow_speed', '?')}")
+        print(f"  Extinction Threshold: {metadata.get('config_extinction_threshold', '?')}")
+        print(f"  Platform: {metadata.get('platform', 'Unknown')}")
+
     # Population state
     print(f"\nPopulation State:")
     print(f"  Timestep: {data.get('timestep', 'Unknown')}")

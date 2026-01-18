@@ -24,6 +24,8 @@ def main():
         description='HUNT GPU Simulation - Large-Scale Predator-Prey Co-Evolution with Brain Persistence',
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
+Note: Use 'python' or 'python3' depending on your system
+
 Controls (during simulation):
   SPACE       - Pause/Resume
   S           - Save statistics to stats_autosave.npz

@@ -25,6 +25,8 @@ def main():
         description='HUNT CPU Simulation - Predator-Prey Co-Evolution',
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
+Note: Use 'python' or 'python3' depending on your system
+
 Controls (during simulation):
   SPACE       - Pause/Resume
   S           - Save statistics to stats.npz

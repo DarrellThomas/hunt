@@ -236,6 +236,41 @@ def plot_evolution(stats, title='HUNT Ecosystem - Evolutionary Dynamics', metada
     plt.tight_layout()
     return fig
 
+def print_config_summary(metadata):
+    """Print configuration parameters used in the simulation."""
+    if not metadata:
+        print("No configuration metadata available.\n")
+        return
+
+    print("Configuration Parameters:")
+    print("-" * 60)
+
+    # World setup
+    print(f"  World Size: {metadata.get('world_width', '?')}x{metadata.get('world_height', '?')}")
+    print(f"  Initial Population: {metadata.get('initial_prey', '?'):,} prey, {metadata.get('initial_predators', '?'):,} predators")
+    print(f"  Max Capacity: {metadata.get('max_prey_capacity', '?'):,} prey, {metadata.get('max_pred_capacity', '?'):,} predators")
+
+    # Physics parameters
+    friction = metadata.get('config_friction', '?')
+    print(f"  Friction: {friction}")
+    print(f"  Prey Max Speed: {metadata.get('config_prey_max_speed', '?')}")
+    print(f"  Predator Max Speed: {metadata.get('config_pred_max_speed', '?')}")
+
+    # River parameters
+    river_enabled = metadata.get('config_river_enabled', '?')
+    print(f"  River Enabled: {river_enabled}")
+    if river_enabled:
+        print(f"  River Flow Speed: {metadata.get('config_river_flow_speed', '?')}")
+
+    # Evolution parameters
+    print(f"  Extinction Threshold: {metadata.get('config_extinction_threshold', '?')}")
+
+    # Runtime info
+    print(f"  Device: {metadata.get('device', 'Unknown')}")
+    print(f"  Platform: {metadata.get('platform', 'Unknown')}")
+    print()
+
+
 def main():
     """Main analysis function."""
     # Parse command line arguments
@@ -271,6 +306,9 @@ def main():
         print(f"Run title: {metadata.get('run_title', 'Unknown')}")
         print(f"Started: {metadata.get('start_time', 'Unknown')}")
     print()
+
+    # Display configuration parameters
+    print_config_summary(metadata)
 
     # Analyze and plot
     fig = plot_evolution(stats, title=title, metadata=metadata)
