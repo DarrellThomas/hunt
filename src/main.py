@@ -4,6 +4,10 @@ CPU simulation runner with visualization.
 Simplified to use unified renderer from renderer.py.
 """
 
+# Suppress pygame's pkg_resources deprecation warning (pygame issue, not ours)
+import warnings
+warnings.filterwarnings('ignore', message='.*pkg_resources.*', category=UserWarning)
+
 import numpy as np
 from world import World
 from renderer import Renderer, RenderConfig, create_state_from_cpu_world
