@@ -290,14 +290,14 @@ class RiverGPU:
             else:
                 effective_half_width = self.river_width / 2
 
-            # Calculate bank positions
+            # Calculate bank positions (convert to Python float for pygame)
             river_left_bank.append((
-                path_x[i] + perp_x * effective_half_width,
-                path_y[i] + perp_y * effective_half_width
+                float(path_x[i] + perp_x * effective_half_width),
+                float(path_y[i] + perp_y * effective_half_width)
             ))
             river_right_bank.append((
-                path_x[i] - perp_x * effective_half_width,
-                path_y[i] - perp_y * effective_half_width
+                float(path_x[i] - perp_x * effective_half_width),
+                float(path_y[i] - perp_y * effective_half_width)
             ))
 
         # Create closed polygon: left bank forward, right bank backward
@@ -349,9 +349,10 @@ class RiverGPU:
 
             half_island = (self.island_width / 2) * taper
 
+            # Convert to Python float for pygame
             island_points.append((
-                path_x[i] + perp_x * half_island,
-                path_y[i] + perp_y * half_island
+                float(path_x[i] + perp_x * half_island),
+                float(path_y[i] + perp_y * half_island)
             ))
 
         # Generate points along bottom edge (right to left)
@@ -375,9 +376,10 @@ class RiverGPU:
             taper = np.sin(t_local * np.pi)
             half_island = (self.island_width / 2) * taper
 
+            # Convert to Python float for pygame
             island_points.append((
-                path_x[i] - perp_x * half_island,
-                path_y[i] - perp_y * half_island
+                float(path_x[i] - perp_x * half_island),
+                float(path_y[i] - perp_y * half_island)
             ))
 
         return island_points

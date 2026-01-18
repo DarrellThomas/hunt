@@ -35,9 +35,6 @@ def main():
     )
     renderer = Renderer(render_config, river=ecosystem.river)
 
-    # Simulation parameters
-    autosave_interval = 1000
-
     # Print startup info
     print("\n" + "="*60)
     print("HUNT GPU - 10,000 Agent Co-Evolution")
@@ -47,9 +44,7 @@ def main():
     print(f"Device: {ecosystem.device}")
     print("Controls:")
     print("  SPACE - Pause/Resume")
-    print("  S - Save statistics")
     print("  ESC - Quit")
-    print(f"Auto-save: Every {autosave_interval} steps")
     print("="*60 + "\n")
 
     # Main loop
@@ -59,11 +54,6 @@ def main():
             # Update simulation (if not paused)
             if not renderer.is_paused():
                 ecosystem.step()
-
-                # Auto-save stats periodically
-                if ecosystem.timestep % autosave_interval == 0:
-                    ecosystem.save_stats()
-                    print(f"Step {ecosystem.timestep}: Auto-saved stats")
 
                 # Print progress
                 if ecosystem.timestep % 100 == 0:
@@ -76,12 +66,7 @@ def main():
             state = create_state_from_gpu_ecosystem(ecosystem)
 
             # Render (returns continue_running, save_requested)
-            running, save_requested = renderer.render(state)
-
-            # Save stats if requested
-            if save_requested:
-                ecosystem.save_stats()
-                print(f"Stats saved at timestep {ecosystem.timestep}")
+            running, _save_requested = renderer.render(state)
 
     except KeyboardInterrupt:
         print("\n\nSimulation interrupted by user.")
@@ -95,10 +80,6 @@ def main():
         print(f"Final: {final_state['prey_count']} prey, "
               f"{final_state['pred_count']} predators")
         print(f"Total timesteps: {ecosystem.timestep}")
-
-        # Final save
-        ecosystem.save_stats()
-        print("Final stats saved to stats_autosave.npz")
 
         renderer.close()
 
