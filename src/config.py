@@ -9,44 +9,44 @@ reproduce more, and can live on less food.
 # ============================================================================
 # PREY PARAMETERS
 # ============================================================================
-PREY_MAX_SPEED = 5.0              # Initial maximum speed
-PREY_MAX_ACCELERATION = 0.7       # Initial acceleration capability
-PREY_SWIM_SPEED = 0.5             # Initial swimming ability (resistance to current, evolvable)
-PREY_MAX_LIFESPAN = 800           # Initial maximum age (mean)
-PREY_LIFESPAN_VARIANCE = 800       # Variance in lifespan
-PREY_REPRODUCTION_AGE = 100       # Initial age when reproduction possible (mean)
-PREY_REPRODUCTION_VARIANCE = 100   # Variance in reproduction age
+PREY_MAX_SPEED = .6              # Initial maximum speed
+PREY_MAX_ACCELERATION = 0.2       # Initial acceleration capability
+PREY_SWIM_SPEED = 0.2             # Initial swimming ability (resistance to current, evolvable)
+PREY_MAX_LIFESPAN = 100           # Initial maximum age (mean)
+PREY_LIFESPAN_VARIANCE = 10       # Variance in lifespan
+PREY_REPRODUCTION_AGE = 80       # Initial age when reproduction possible (mean)
+PREY_REPRODUCTION_VARIANCE = 1   # Variance in reproduction age
 
 # ============================================================================
 # PREDATOR PARAMETERS
 # ============================================================================
-PRED_MAX_SPEED = 2.2              # Initial maximum speed (slightly slower than prey)
-PRED_MAX_ACCELERATION = 0.4       # Initial acceleration capability
-PRED_SWIM_SPEED = 0.2             # Initial swimming ability (resistance to current, evolvable)
-PRED_MAX_LIFESPAN = 800           # Initial maximum age (mean)
-PRED_LIFESPAN_VARIANCE = 800       # Variance in lifespan
-PRED_MAX_ENERGY = 100             # Initial maximum energy/health
+PRED_MAX_SPEED = .45              # Initial maximum speed (slightly slower than prey)
+PRED_MAX_ACCELERATION = 0.1       # Initial acceleration capability
+PRED_SWIM_SPEED = 0.1             # Initial swimming ability (resistance to current, evolvable)
+PRED_MAX_LIFESPAN = 400           # Initial maximum age (mean)
+PRED_LIFESPAN_VARIANCE = 50       # Variance in lifespan
+PRED_MAX_ENERGY = 150             # Initial maximum energy/health
 PRED_ENERGY_COST = 0.3            # Initial energy cost per step (hunger rate)
-PRED_ENERGY_GAIN = 60             # Initial energy gained per kill
-PRED_REPRODUCTION_THRESHOLD = 50 # Initial energy needed to reproduce
-PRED_REPRODUCTION_COST = 5       # Initial energy cost of reproduction
-PRED_REPRODUCTION_COOLDOWN = 300  # Initial time between reproductions (mean)
-PRED_REPRODUCTION_VARIANCE = 100   # Variance in reproduction cooldown
+PRED_ENERGY_GAIN = 40             # Initial energy gained per kill
+PRED_REPRODUCTION_THRESHOLD = 80 # Initial energy needed to reproduce
+PRED_REPRODUCTION_COST = 50       # Initial energy cost of reproduction
+PRED_REPRODUCTION_COOLDOWN = 150  # Initial time between reproductions (mean)
+PRED_REPRODUCTION_VARIANCE = 20   # Variance in reproduction cooldown
 
 # ============================================================================
 # WORLD PARAMETERS
 # ============================================================================
 CATCH_RADIUS = 8.0                # Distance at which predator catches prey
-FRICTION = 0.15                    # Velocity damping per timestep (0.0-1.0, higher = more friction)
+FRICTION = 0.2                    # Velocity damping per timestep (0.0-1.0, higher = more friction)
 EXTINCTION_THRESHOLD = 0          # Population below this is considered extinct (0 = complete extinction only)
 
 # ============================================================================
 # POPULATION PARAMETERS
 # ============================================================================
 # Base population values (scaled proportionally to screen area in GPU mode)
-INITIAL_PREY_POPULATION = 8000    # Base number of prey at start
-INITIAL_PREDATOR_POPULATION = 2000 # Base number of predators at start
-POPULATION_CAPACITY_MULTIPLIER = 3 # Maximum capacity = initial × this (allows population growth)
+INITIAL_PREY_POPULATION = 500    # Base number of prey at start
+INITIAL_PREDATOR_POPULATION = 100 # Base number of predators at start
+POPULATION_CAPACITY_MULTIPLIER = 10 # Maximum capacity = initial × this (allows population growth)
 
 # ============================================================================
 # RIVER PARAMETERS
@@ -66,10 +66,10 @@ RIVER_ISLAND_WIDTH = 300          # Width of island between split channels
 # These multipliers affect agent behavior while on the island
 
 # Prey modifiers
-ISLAND_PREY_SPEED_MULTIPLIER = 2.0          # Speed modifier (1.0 = normal, 1.5 = 50% faster, 0.5 = 50% slower)
-ISLAND_PREY_REPRODUCTION_MULTIPLIER = .7   # Reproduction wait time modifier (1.0 = normal, 0.5 = reproduce 2x faster, 2.0 = reproduce 2x slower)
+ISLAND_PREY_SPEED_MULTIPLIER = 1.5          # Speed modifier (1.0 = normal, 1.5 = 50% faster, 0.5 = 50% slower)
+ISLAND_PREY_REPRODUCTION_MULTIPLIER = .5   # Reproduction wait time modifier (1.0 = normal, 0.5 = reproduce 2x faster, 2.0 = reproduce 2x slower)
 
 # Predator modifiers
-ISLAND_PRED_SPEED_MULTIPLIER = 0.2          # Speed modifier (1.0 = normal, 1.5 = 50% faster, 0.5 = 50% slower)
-ISLAND_PRED_HUNGER_MULTIPLIER = 3.0         # Hunger rate modifier (1.0 = normal, 2.0 = get hungry 2x faster, 0.5 = get hungry 2x slower)
-ISLAND_PRED_REPRODUCTION_MULTIPLIER = 3.0   # Reproduction wait time modifier (1.0 = normal, 0.5 = reproduce 2x faster, 2.0 = reproduce 2x slower)
+ISLAND_PRED_SPEED_MULTIPLIER = 0.6          # Speed modifier (1.0 = normal, 1.5 = 50% faster, 0.5 = 50% slower)
+ISLAND_PRED_HUNGER_MULTIPLIER = 2.0         # Hunger rate modifier (1.0 = normal, 2.0 = get hungry 2x faster, 0.5 = get hungry 2x slower)
+ISLAND_PRED_REPRODUCTION_MULTIPLIER = 2.0   # Reproduction wait time modifier (1.0 = normal, 0.5 = reproduce 2x faster, 2.0 = reproduce 2x slower)

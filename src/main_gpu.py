@@ -20,13 +20,63 @@ def main():
     import pygame
 
     # Parse command line arguments
-    parser = argparse.ArgumentParser(description='HUNT GPU Simulation with Brain Persistence')
+    parser = argparse.ArgumentParser(
+        description='HUNT GPU Simulation - Large-Scale Predator-Prey Co-Evolution with Brain Persistence',
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+Controls (during simulation):
+  SPACE       - Pause/Resume
+  S           - Save statistics to stats_autosave.npz
+  B           - Save brain checkpoint (neural network weights)
+  ESC         - Quit (auto-saves stats and brains)
+
+Auto-Save:
+  Stats:  Every 100 timesteps
+  Brains: Every 10,000 timesteps
+  Both automatically saved on exit
+
+Examples:
+  # Basic run
+  python main_gpu.py
+
+  # Named experiment with title
+  python main_gpu.py --title="Island Refuge Experiment"
+
+  # Named brain checkpoints
+  python main_gpu.py --title="High Mutation" --brain-checkpoint=highmut
+  # Saves: brains_highmut_autosave_10000.npz, brains_highmut_autosave_20000.npz, etc.
+
+  # Resume from checkpoint
+  python main_gpu.py --load-brains=brains_step_50000.npz --title="Island Refuge (continued)"
+
+  # Combination: resume with named checkpoints
+  python main_gpu.py --load-brains=brains_highmut_final_75000.npz --brain-checkpoint=highmut_v2
+
+Analysis Tools:
+  # View evolution graphs
+  python analyze_evolution.py stats_autosave.npz --title="Custom Title"
+
+  # Inspect brain checkpoint
+  python analyze_brains.py brains_step_100000.npz --verbose
+
+  # Compare two checkpoints
+  python analyze_brains.py brains_early.npz --compare brains_late.npz
+
+Features:
+  - GPU-accelerated: 10,000+ agents at 60 FPS
+  - Fullscreen: Auto-adapts to monitor resolution
+  - Brain persistence: Save/load evolved neural networks
+  - Metadata tracking: All parameters saved for reproducibility
+  - Dynamic populations: Can grow 3x beyond initial (configurable)
+        """
+    )
+
     parser.add_argument('--title', type=str, default='Untitled Run',
-                        help='Title for this experimental run (saved in metadata)')
+                        help='Title for this experimental run (saved in metadata and stats)')
     parser.add_argument('--load-brains', type=str, default=None,
-                        help='Load brain weights from file to continue evolution')
+                        help='Load brain weights from .npz file to continue evolution (e.g., brains_step_50000.npz)')
     parser.add_argument('--brain-checkpoint', type=str, default=None,
-                        help='Name prefix for brain checkpoint saves')
+                        help='Name prefix for brain checkpoint saves (e.g., "island" creates brains_island_autosave_10000.npz)')
     args = parser.parse_args()
 
     # Detect native monitor resolution for true fullscreen
