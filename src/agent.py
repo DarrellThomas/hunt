@@ -64,6 +64,9 @@ class Agent:
         # Update velocity with acceleration
         self.vel += self.acc * dt
 
+        # Apply friction (allows agents to stay still)
+        self.vel *= (1.0 - FRICTION)
+
         # Limit speed
         speed = np.linalg.norm(self.vel)
         if speed > self.max_speed:

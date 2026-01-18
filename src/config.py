@@ -37,17 +37,18 @@ PRED_REPRODUCTION_VARIANCE = 15   # Variance in reproduction cooldown
 # WORLD PARAMETERS
 # ============================================================================
 CATCH_RADIUS = 8.0                # Distance at which predator catches prey
+FRICTION = 0.1                    # Velocity damping per timestep (0.0-1.0, higher = more friction)
 
 # ============================================================================
 # RIVER PARAMETERS
 # ============================================================================
 RIVER_ENABLED = True              # Enable/disable river feature
 RIVER_WIDTH = 500                 # Width of the river in pixels
-RIVER_FLOW_SPEED = 10.0            # Speed of water current (added to agent velocity)
-RIVER_CURVINESS = 0.05             # How curvy the river is (0=straight, 1=very curvy)
+RIVER_FLOW_SPEED = 1.25            # Speed of water current (added to agent velocity)
+RIVER_CURVINESS = 0.0            # How curvy the river is (0=straight, 1=very curvy)
 RIVER_SPLIT = True                # Whether river splits to create an island
-RIVER_SPLIT_START = 0.01           # Where split starts (0-1 along river path)
-RIVER_SPLIT_END = 0.99             # Where split ends (0-1 along river path)
+RIVER_SPLIT_START = 0.3           # Where split starts (0-1 along river path)
+RIVER_SPLIT_END = 0.7             # Where split ends (0-1 along river path)
 RIVER_ISLAND_WIDTH = 200          # Width of island between split channels
 
 # ============================================================================
@@ -56,10 +57,10 @@ RIVER_ISLAND_WIDTH = 200          # Width of island between split channels
 # These multipliers affect agent behavior while on the island
 
 # Prey modifiers
-ISLAND_PREY_SPEED_MULTIPLIER = 1.0          # Speed modifier (1.0 = normal, 1.5 = 50% faster, 0.5 = 50% slower)
-ISLAND_PREY_REPRODUCTION_MULTIPLIER = 1.0   # Reproduction wait time modifier (1.0 = normal, 0.5 = reproduce 2x faster, 2.0 = reproduce 2x slower)
+ISLAND_PREY_SPEED_MULTIPLIER = 2.0          # Speed modifier (1.0 = normal, 1.5 = 50% faster, 0.5 = 50% slower)
+ISLAND_PREY_REPRODUCTION_MULTIPLIER = .8   # Reproduction wait time modifier (1.0 = normal, 0.5 = reproduce 2x faster, 2.0 = reproduce 2x slower)
 
 # Predator modifiers
-ISLAND_PRED_SPEED_MULTIPLIER = 1.0          # Speed modifier (1.0 = normal, 1.5 = 50% faster, 0.5 = 50% slower)
-ISLAND_PRED_HUNGER_MULTIPLIER = 1.0         # Hunger rate modifier (1.0 = normal, 2.0 = get hungry 2x faster, 0.5 = get hungry 2x slower)
-ISLAND_PRED_REPRODUCTION_MULTIPLIER = 1.0   # Reproduction wait time modifier (1.0 = normal, 0.5 = reproduce 2x faster, 2.0 = reproduce 2x slower)
+ISLAND_PRED_SPEED_MULTIPLIER = 0.2          # Speed modifier (1.0 = normal, 1.5 = 50% faster, 0.5 = 50% slower)
+ISLAND_PRED_HUNGER_MULTIPLIER = 3.0         # Hunger rate modifier (1.0 = normal, 2.0 = get hungry 2x faster, 0.5 = get hungry 2x slower)
+ISLAND_PRED_REPRODUCTION_MULTIPLIER = 3.0   # Reproduction wait time modifier (1.0 = normal, 0.5 = reproduce 2x faster, 2.0 = reproduce 2x slower)

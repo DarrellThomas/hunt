@@ -388,6 +388,9 @@ class GPUEcosystem:
         # 2. Physics update (vectorized)
         self.prey_vel[self.prey_alive] += self.prey_acc[self.prey_alive]
 
+        # Apply friction (allows agents to stay still)
+        self.prey_vel[self.prey_alive] *= (1.0 - FRICTION)
+
         # Apply island speed modifiers to prey
         prey_island_mods = self.get_island_modifiers(self.prey_pos[self.prey_alive], 'prey')
         if prey_island_mods is not None:
@@ -441,6 +444,9 @@ class GPUEcosystem:
         self.prey_repro_timer[self.prey_alive] += 1
 
         self.pred_vel[self.pred_alive] += self.pred_acc[self.pred_alive]
+
+        # Apply friction (allows agents to stay still)
+        self.pred_vel[self.pred_alive] *= (1.0 - FRICTION)
 
         # Apply island speed modifiers to predators
         pred_island_mods = self.get_island_modifiers(self.pred_pos[self.pred_alive], 'predator')
